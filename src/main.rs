@@ -13,10 +13,12 @@ use yew::prelude::*;
 const STORAGE_KEY_CARDS: &str = "net.noserose.memoradical:cards";
 
 enum Msg {
+    Flip,
     Hit,
     Miss,
     Next,
-    StoreCards(String),
+    StoreCards,
+    StoreNewCards(String),
     UploadCards(Vec<File>),
 }
 
@@ -28,9 +30,17 @@ struct Card {
     misses: usize,
 }
 
+#[derive(Debug, PartialEq)]
+enum Face {
+    Prompt,
+    Response,
+}
+
 struct Model {
     cards: Vec<Card>,
     current_card: usize,
+    debug_info: String,
+    visible_face: Face,
     readers: Vec<FileReader>,
 }
 
@@ -74,39 +84,67 @@ impl Component for Model {
 
     fn create(_ctx: &yew::Context<Self>) -> Self {
         let retrieved = LocalStorage::get(STORAGE_KEY_CARDS);
+        let mut debug_info = "".to_owned();
         let json: Option<String> = match retrieved {
             Ok(json) => Some(json),
-            Err(_) => match store_data() {
-                Ok(json) => Some(json),
-                Err(_) => None,
-            },
+            Err(e) => {
+                debug_info = format!("retrieve error: {:?}", e);
+                match store_data() {
+                    Ok(json) => Some(json),
+                    Err(e) => {
+                        debug_info = format!("store error: {:?}", e);
+                        None
+                    }
+                }
+            }
         };
         let cards: Vec<Card> = serde_json::from_str(&json.unwrap()).unwrap();
 
         Self {
             cards,
             current_card: 0,
+            debug_info,
+            visible_face: Face::Prompt,
             readers: vec![],
         }
     }
 
     fn update(&mut self, ctx: &yew::Context<Self>, msg: Self::Message) -> bool {
         match msg {
+            Msg::Flip => {
+                self.visible_face = match self.visible_face {
+                    Face::Prompt => Face::Response,
+                    Face::Response => Face::Prompt,
+                };
+                true
+            }
             Msg::Hit => {
                 self.cards[self.current_card].hits += 1;
+                self.visible_face = Face::Prompt;
+                ctx.link().send_message(Msg::StoreCards);
                 ctx.link().send_message(Msg::Next);
                 true
             }
             Msg::Miss => {
                 self.cards[self.current_card].misses += 1;
+                self.visible_face = Face::Prompt;
+                ctx.link().send_message(Msg::StoreCards);
                 ctx.link().send_message(Msg::Next);
                 true
             }
             Msg::Next => {
                 self.current_card = choose_card(&self.cards);
+                self.visible_face = Face::Prompt;
                 true
             }
-            Msg::StoreCards(json) => {
+            Msg::StoreCards => {
+                let json = serde_json::to_string(&self.cards).unwrap();
+                LocalStorage::set(STORAGE_KEY_CARDS, &json)
+                    .context("storing existing cards")
+                    .unwrap();
+                true
+            }
+            Msg::StoreNewCards(json) => {
                 let cards: Vec<Card> = serde_json::from_str(&json).unwrap();
                 self.cards = cards;
                 LocalStorage::set(STORAGE_KEY_CARDS, json)
@@ -119,7 +157,7 @@ impl Component for Model {
                 let task = {
                     let link = ctx.link().clone();
                     read_as_text(&files[0], move |result| {
-                        link.send_message(Msg::StoreCards(result.unwrap()));
+                        link.send_message(Msg::StoreNewCards(result.unwrap()));
                     })
                 };
                 self.readers.push(task);
@@ -130,9 +168,13 @@ impl Component for Model {
 
     fn view(&self, ctx: &yew::Context<Self>) -> Html {
         let card_html = if let Some(card) = self.cards.get(self.current_card) {
+            let text = match self.visible_face {
+                Face::Prompt => card.prompt.clone(),
+                Face::Response => card.response.clone(),
+            };
             html! {
                 <>
-                    <p>{format!("{:?}", card)}</p>
+                    <p>{text}</p>
                 </>
             }
         } else {
@@ -166,13 +208,25 @@ impl Component for Model {
                 </pre>
             }
         };
+        let debug_html = {
+            html! {
+                <div>
+                    <p>{"debug info"}</p>
+                    <pre>
+                        {self.debug_info.clone()}
+                    </pre>
+                </div>
+            }
+        };
         html! {
             <div>
                 {upload_html}
                 {card_html}
+                <button onclick={ctx.link().callback(|_| Msg::Flip)}>{ "Flip" }</button>
                 <button onclick={ctx.link().callback(|_| Msg::Next)}>{ "Next" }</button>
                 <button onclick={ctx.link().callback(|_| Msg::Hit)}>{ "Hit" }</button>
                 <button onclick={ctx.link().callback(|_| Msg::Miss)}>{ "Miss" }</button>
+                {debug_html}
                 {json_html}
             </div>
         }
