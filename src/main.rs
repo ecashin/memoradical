@@ -1,8 +1,13 @@
 use anyhow::{Context, Result};
+use gloo_file::{
+    callbacks::{read_as_text, FileReader},
+    File,
+};
 use gloo_storage::{LocalStorage, Storage};
 use rand::distributions::WeightedIndex;
 use rand_distr::{Beta, Distribution};
 use serde::{Deserialize, Serialize};
+use web_sys::{Event, HtmlInputElement};
 use yew::prelude::*;
 
 const STORAGE_KEY_CARDS: &str = "net.noserose.memoradical:cards";
@@ -11,6 +16,8 @@ enum Msg {
     Hit,
     Miss,
     Next,
+    StoreCards(String),
+    UploadCards(Vec<File>),
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -24,6 +31,7 @@ struct Card {
 struct Model {
     cards: Vec<Card>,
     current_card: usize,
+    readers: Vec<FileReader>,
 }
 
 fn choose_card(cards: &[Card]) -> usize {
@@ -78,6 +86,7 @@ impl Component for Model {
         Self {
             cards,
             current_card: 0,
+            readers: vec![],
         }
     }
 
@@ -97,6 +106,25 @@ impl Component for Model {
                 self.current_card = choose_card(&self.cards);
                 true
             }
+            Msg::StoreCards(json) => {
+                let cards: Vec<Card> = serde_json::from_str(&json).unwrap();
+                self.cards = cards;
+                LocalStorage::set(STORAGE_KEY_CARDS, json)
+                    .context("storing cards")
+                    .unwrap();
+                true
+            }
+            Msg::UploadCards(files) => {
+                assert_eq!(files.len(), 1);
+                let task = {
+                    let link = ctx.link().clone();
+                    read_as_text(&files[0], move |result| {
+                        link.send_message(Msg::StoreCards(result.unwrap()));
+                    })
+                };
+                self.readers.push(task);
+                true
+            }
         }
     }
 
@@ -110,12 +138,42 @@ impl Component for Model {
         } else {
             html! {}
         };
+        let upload_html = html! {
+            <div>
+                <input type="file" multiple=false
+                    onchange={ctx.link().callback(move |e: Event| {
+
+                        let mut result = Vec::new();
+                        let input: HtmlInputElement = e.target_unchecked_into();
+
+                        if let Some(files) = input.files() {
+                            let files = js_sys::try_iter(&files)
+                                .unwrap()
+                                .unwrap()
+                                .map(|v| web_sys::File::from(v.unwrap()))
+                                .map(File::from);
+                            result.extend(files);
+                        }
+                        Msg::UploadCards(result)
+                    })}/>
+            </div>
+        };
+        let json_html = {
+            let json = serde_json::to_string_pretty(&self.cards).unwrap();
+            html! {
+                <pre>
+                    {json}
+                </pre>
+            }
+        };
         html! {
             <div>
+                {upload_html}
                 {card_html}
                 <button onclick={ctx.link().callback(|_| Msg::Next)}>{ "Next" }</button>
                 <button onclick={ctx.link().callback(|_| Msg::Hit)}>{ "Hit" }</button>
                 <button onclick={ctx.link().callback(|_| Msg::Miss)}>{ "Miss" }</button>
+                {json_html}
             </div>
         }
     }

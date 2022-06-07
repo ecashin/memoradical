@@ -225,11 +225,14 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "getrandom",
+ "gloo-file",
  "gloo-storage",
+ "js-sys",
  "rand",
  "rand_distr",
  "serde",
  "serde_json",
+ "web-sys",
  "yew",
 ]
 
