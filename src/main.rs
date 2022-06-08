@@ -96,10 +96,10 @@ impl Component for Model {
             },
         };
         let cards: Vec<Card> = serde_json::from_str(&json.unwrap()).unwrap();
-
+        let current_card = choose_card(&cards);
         Self {
             cards,
-            current_card: 0,
+            current_card,
             display_history: vec![],
             visible_face: Face::Prompt,
             readers: vec![],
