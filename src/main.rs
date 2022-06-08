@@ -7,7 +7,7 @@ use gloo_storage::{LocalStorage, Storage};
 use rand::distributions::WeightedIndex;
 use rand_distr::{Beta, Distribution};
 use serde::{Deserialize, Serialize};
-use web_sys::{Event, HtmlInputElement};
+use web_sys::{Event, HtmlElement, HtmlInputElement};
 use yew::prelude::*;
 
 const STORAGE_KEY_CARDS: &str = "net.noserose.memoradical:cards";
@@ -42,6 +42,7 @@ struct Model {
     debug_info: String,
     visible_face: Face,
     readers: Vec<FileReader>,
+    node_ref: NodeRef,
 }
 
 fn choose_card(cards: &[Card]) -> usize {
@@ -106,6 +107,15 @@ impl Component for Model {
             debug_info,
             visible_face: Face::Prompt,
             readers: vec![],
+            node_ref: NodeRef::default(),
+        }
+    }
+
+    fn rendered(&mut self, _ctx: &yew::Context<Self>, first_render: bool) {
+        if first_render {
+            if let Some(elt) = self.node_ref.cast::<HtmlElement>() {
+                elt.focus().expect("focus on div");
+            }
         }
     }
 
@@ -184,10 +194,8 @@ impl Component for Model {
             <div>
                 <input type="file" multiple=false
                     onchange={ctx.link().callback(move |e: Event| {
-
                         let mut result = Vec::new();
                         let input: HtmlInputElement = e.target_unchecked_into();
-
                         if let Some(files) = input.files() {
                             let files = js_sys::try_iter(&files)
                                 .unwrap()
@@ -218,11 +226,29 @@ impl Component for Model {
                 </div>
             }
         };
+        let onkeypress = {
+            let link = ctx.link().clone();
+            link.batch_callback(|e: yew::events::KeyboardEvent| {
+                let k = e.key();
+                if k == "f" {
+                    Some(Msg::Flip)
+                } else if k == "h" {
+                    Some(Msg::Hit)
+                } else if k == "m" {
+                    Some(Msg::Miss)
+                } else if k == "n" {
+                    Some(Msg::Next)
+                } else {
+                    None
+                }
+            })
+        };
         html! {
-            <div>
+            <div id="memoradical" {onkeypress}>
                 {upload_html}
                 {card_html}
-                <button onclick={ctx.link().callback(|_| Msg::Flip)}>{ "Flip" }</button>
+                <button ref={self.node_ref.clone()}
+                    onclick={ctx.link().callback(|_| Msg::Flip)}>{ "Flip" }</button>
                 <button onclick={ctx.link().callback(|_| Msg::Next)}>{ "Next" }</button>
                 <button onclick={ctx.link().callback(|_| Msg::Hit)}>{ "Hit" }</button>
                 <button onclick={ctx.link().callback(|_| Msg::Miss)}>{ "Miss" }</button>
