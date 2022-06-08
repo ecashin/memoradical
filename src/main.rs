@@ -18,6 +18,7 @@ enum Msg {
     Hit,
     Miss,
     Next,
+    Prev,
     StoreCards,
     StoreNewCards(String),
     UploadCards(Vec<File>),
@@ -40,10 +41,11 @@ enum Face {
 struct Model {
     cards: Vec<Card>,
     current_card: usize,
-    visible_face: Face,
-    readers: Vec<FileReader>,
+    display_history: Vec<usize>,
     node_ref: NodeRef,
+    readers: Vec<FileReader>,
     showing_help: bool,
+    visible_face: Face,
 }
 
 fn choose_card(cards: &[Card]) -> usize {
@@ -98,6 +100,7 @@ impl Component for Model {
         Self {
             cards,
             current_card: 0,
+            display_history: vec![],
             visible_face: Face::Prompt,
             readers: vec![],
             node_ref: NodeRef::default(),
@@ -141,9 +144,18 @@ impl Component for Model {
                 true
             }
             Msg::Next => {
+                self.display_history.push(self.current_card);
                 self.current_card = choose_card(&self.cards);
                 self.visible_face = Face::Prompt;
                 true
+            }
+            Msg::Prev => {
+                if !self.display_history.is_empty() {
+                    self.current_card = self.display_history.pop().unwrap();
+                    true
+                } else {
+                    false
+                }
             }
             Msg::StoreCards => {
                 let json = serde_json::to_string(&self.cards).unwrap();
@@ -226,6 +238,8 @@ impl Component for Model {
                     Some(Msg::Miss)
                 } else if k == "n" {
                     Some(Msg::Next)
+                } else if k == "p" {
+                    Some(Msg::Prev)
                 } else {
                     None
                 }
@@ -235,6 +249,7 @@ impl Component for Model {
             html! {
                 <div>
                     <button onclick={ctx.link().callback(|_| Msg::Help(false))}>{"Go"}</button>
+                    <h2>{"Memoradical"}</h2>
                     <p>{"Here is some help."}</p>
                     <hr/>
                     <h2>{"Local Only App"}</h2>
@@ -251,6 +266,10 @@ impl Component for Model {
                     <p>{"If you know the meaning of the word, click \"Hit\" or hit the \"h\" key."}</p>
                     <p>{"If you know the meaning of the word, click \"Miss\" or hit the \"m\" key."}</p>
                     <p>{"To go to the next card without hitting or missing, click \"Next\" or hit the \"n\" key."}</p>
+                    <p>
+                        <span>{"To go to the previous card without hitting or missing, click \"Prev\" or hit the \"p\" key."}</span>
+                        <span>{" After you go backward, going forward results in new random draws for cards."}</span>
+                    </p>
                     <hr/>
                     <h2>{"Data"}</h2>
                     <p>{"Use the button at the top to upload a JSON file with new cards."}</p>
@@ -267,6 +286,7 @@ impl Component for Model {
                     {card_html}
                     <button ref={self.node_ref.clone()}
                         onclick={ctx.link().callback(|_| Msg::Flip)}>{ "Flip" }</button>
+                    <button onclick={ctx.link().callback(|_| Msg::Prev)}>{ "Prev" }</button>
                     <button onclick={ctx.link().callback(|_| Msg::Next)}>{ "Next" }</button>
                     <button onclick={ctx.link().callback(|_| Msg::Hit)}>{ "Hit" }</button>
                     <button onclick={ctx.link().callback(|_| Msg::Miss)}>{ "Miss" }</button>
