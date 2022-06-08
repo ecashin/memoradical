@@ -188,13 +188,14 @@ impl Component for Model {
 
     fn view(&self, ctx: &yew::Context<Self>) -> Html {
         let card_html = if let Some(card) = self.cards.get(self.current_card) {
-            let text = match self.visible_face {
-                Face::Prompt => card.prompt.clone(),
-                Face::Response => card.response.clone(),
+            let (text, bg_color) = match self.visible_face {
+                Face::Prompt => (card.prompt.clone(), "#EEE8AA"),
+                Face::Response => (card.response.clone(), "#C1FFC1"),
             };
+            let style = format!("background-color: {bg_color}; font-size: large; padding: 3em");
             html! {
                 <>
-                    <p>{text}</p>
+                    <p style={style}>{text}</p>
                 </>
             }
         } else {
