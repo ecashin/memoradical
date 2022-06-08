@@ -14,6 +14,7 @@ const STORAGE_KEY_CARDS: &str = "net.noserose.memoradical:cards";
 
 enum Msg {
     Flip,
+    Help(bool),
     Hit,
     Miss,
     Next,
@@ -39,10 +40,10 @@ enum Face {
 struct Model {
     cards: Vec<Card>,
     current_card: usize,
-    debug_info: String,
     visible_face: Face,
     readers: Vec<FileReader>,
     node_ref: NodeRef,
+    showing_help: bool,
 }
 
 fn choose_card(cards: &[Card]) -> usize {
@@ -85,29 +86,22 @@ impl Component for Model {
 
     fn create(_ctx: &yew::Context<Self>) -> Self {
         let retrieved = LocalStorage::get(STORAGE_KEY_CARDS);
-        let mut debug_info = "".to_owned();
         let json: Option<String> = match retrieved {
             Ok(json) => Some(json),
-            Err(e) => {
-                debug_info = format!("retrieve error: {:?}", e);
-                match store_data() {
-                    Ok(json) => Some(json),
-                    Err(e) => {
-                        debug_info = format!("store error: {:?}", e);
-                        None
-                    }
-                }
-            }
+            Err(_e) => match store_data() {
+                Ok(json) => Some(json),
+                Err(_e) => None,
+            },
         };
         let cards: Vec<Card> = serde_json::from_str(&json.unwrap()).unwrap();
 
         Self {
             cards,
             current_card: 0,
-            debug_info,
             visible_face: Face::Prompt,
             readers: vec![],
             node_ref: NodeRef::default(),
+            showing_help: true,
         }
     }
 
@@ -126,6 +120,10 @@ impl Component for Model {
                     Face::Prompt => Face::Response,
                     Face::Response => Face::Prompt,
                 };
+                true
+            }
+            Msg::Help(yesno) => {
+                self.showing_help = yesno;
                 true
             }
             Msg::Hit => {
@@ -216,16 +214,6 @@ impl Component for Model {
                 </pre>
             }
         };
-        let debug_html = {
-            html! {
-                <div>
-                    <p>{"debug info"}</p>
-                    <pre>
-                        {self.debug_info.clone()}
-                    </pre>
-                </div>
-            }
-        };
         let onkeypress = {
             let link = ctx.link().clone();
             link.batch_callback(|e: yew::events::KeyboardEvent| {
@@ -243,18 +231,48 @@ impl Component for Model {
                 }
             })
         };
-        html! {
-            <div id="memoradical" {onkeypress}>
-                {upload_html}
-                {card_html}
-                <button ref={self.node_ref.clone()}
-                    onclick={ctx.link().callback(|_| Msg::Flip)}>{ "Flip" }</button>
-                <button onclick={ctx.link().callback(|_| Msg::Next)}>{ "Next" }</button>
-                <button onclick={ctx.link().callback(|_| Msg::Hit)}>{ "Hit" }</button>
-                <button onclick={ctx.link().callback(|_| Msg::Miss)}>{ "Miss" }</button>
-                {debug_html}
-                {json_html}
-            </div>
+        if self.showing_help {
+            html! {
+                <div>
+                    <button onclick={ctx.link().callback(|_| Msg::Help(false))}>{"Go"}</button>
+                    <p>{"Here is some help."}</p>
+                    <hr/>
+                    <h2>{"Local Only App"}</h2>
+                    <p>{"This web app runs on your browser and stores information on your local system."}</p>
+                    <p>
+                        <span>{"Your information never leaves your system."}</span>
+                        <span>{"It only requests HTML and "}</span>
+                        <a href="https://webassembly.org/">{"Web Assembly"}</a>
+                        <span>{" from the server."}</span>
+                    </p>
+                    <hr/>
+                    <h2>{"Usage"}</h2>
+                    <p>{"To flip the card, click \"Flip\" or hit the \"f\" key."}</p>
+                    <p>{"If you know the meaning of the word, click \"Hit\" or hit the \"h\" key."}</p>
+                    <p>{"If you know the meaning of the word, click \"Miss\" or hit the \"m\" key."}</p>
+                    <p>{"To go to the next card without hitting or missing, click \"Next\" or hit the \"n\" key."}</p>
+                    <hr/>
+                    <h2>{"Data"}</h2>
+                    <p>{"Use the button at the top to upload a JSON file with new cards."}</p>
+                    <p>{"Follow the format of the JSON displayed at the bottom of the page."}</p>
+                    <p>{"Misses make cards appear more frequently, but hits make them appear less frequently."}</p>
+                    <p>{"If no data is available, two dummy cards are displayed."}</p>
+                </div>
+            }
+        } else {
+            html! {
+                <div id="memoradical" {onkeypress}>
+                    <button onclick={ctx.link().callback(|_| Msg::Help(true))}>{"Help"}</button>
+                    {upload_html}
+                    {card_html}
+                    <button ref={self.node_ref.clone()}
+                        onclick={ctx.link().callback(|_| Msg::Flip)}>{ "Flip" }</button>
+                    <button onclick={ctx.link().callback(|_| Msg::Next)}>{ "Next" }</button>
+                    <button onclick={ctx.link().callback(|_| Msg::Hit)}>{ "Hit" }</button>
+                    <button onclick={ctx.link().callback(|_| Msg::Miss)}>{ "Miss" }</button>
+                    {json_html}
+                </div>
+            }
         }
     }
 }
