@@ -152,6 +152,7 @@ impl Component for Model {
             Msg::Prev => {
                 if !self.display_history.is_empty() {
                     self.current_card = self.display_history.pop().unwrap();
+                    self.visible_face = Face::Prompt;
                     true
                 } else {
                     false
