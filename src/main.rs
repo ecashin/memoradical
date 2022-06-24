@@ -1,3 +1,5 @@
+use std::collections::LinkedList;
+
 use anyhow::{Context, Result};
 use gloo_console::console_dbg;
 use gloo_file::{
@@ -42,7 +44,7 @@ enum Face {
 struct Model {
     cards: Vec<Card>,
     current_card: usize,
-    display_history: Vec<usize>,
+    display_history: LinkedList<usize>,
     node_ref: NodeRef,
     readers: Vec<FileReader>,
     showing_help: bool,
@@ -56,10 +58,13 @@ fn choose_card(cards: &[Card]) -> usize {
         .map(|card| {
             let shape1 = card.misses + 1;
             let shape2 = card.hits + 1;
+            /*
             let sample = Beta::new(shape1 as f64, shape2 as f64).unwrap().sample(rng);
             let sample_view = format!("{sample:.8}");
             console_dbg!((shape1, shape2, sample_view, &card.prompt));
             sample
+            */
+            Beta::new(shape1 as f64, shape2 as f64).unwrap().sample(rng)
         })
         .collect();
     let dist = WeightedIndex::new(&weights).unwrap();
@@ -86,6 +91,23 @@ fn store_data() -> Result<String> {
     Ok(value)
 }
 
+impl Model {
+    fn record_display(&mut self, card: usize) {
+        let n = self.cards.len() / 2;
+        self.display_history.push_back(card);
+        if self.display_history.len() > n {
+            self.display_history.pop_front();
+        }
+        console_dbg!(&self.display_history);
+    }
+
+    fn pop_last_displayed(&mut self) -> Option<usize> {
+        let last_card = self.display_history.pop_back();
+        console_dbg!(("pop", &self.display_history));
+        last_card
+    }
+}
+
 impl Component for Model {
     type Message = Msg;
     type Properties = ();
@@ -104,7 +126,7 @@ impl Component for Model {
         Self {
             cards,
             current_card,
-            display_history: vec![],
+            display_history: LinkedList::new(),
             visible_face: Face::Prompt,
             readers: vec![],
             node_ref: NodeRef::default(),
@@ -148,14 +170,14 @@ impl Component for Model {
                 true
             }
             Msg::Next => {
-                self.display_history.push(self.current_card);
+                self.record_display(self.current_card);
                 self.current_card = choose_card(&self.cards);
                 self.visible_face = Face::Prompt;
                 true
             }
             Msg::Prev => {
-                if !self.display_history.is_empty() {
-                    self.current_card = self.display_history.pop().unwrap();
+                if let Some(last_card) = self.pop_last_displayed() {
+                    self.current_card = last_card;
                     self.visible_face = Face::Prompt;
                     true
                 } else {
