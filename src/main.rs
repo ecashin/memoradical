@@ -1,7 +1,7 @@
 use std::collections::{HashSet, LinkedList};
 
 use anyhow::{Context, Result};
-use gloo_console::console_dbg;
+// use gloo_console::console_dbg;
 use gloo_file::{
     callbacks::{read_as_text, FileReader},
     File,
@@ -99,13 +99,11 @@ impl Model {
         if self.display_history.len() > n {
             self.display_history.pop_front();
         }
-        console_dbg!(&self.display_history);
+        // console_dbg!(&self.display_history);
     }
 
     fn pop_last_displayed(&mut self) -> Option<usize> {
-        let last_card = self.display_history.pop_back();
-        console_dbg!(("pop", &self.display_history));
-        last_card
+        self.display_history.pop_back()
     }
 }
 
