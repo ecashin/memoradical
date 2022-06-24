@@ -25,8 +25,8 @@ grep -v '^#' | while read rank prompt response; do
     echo "{"
     echo `kvq "prompt" "$prompt"`,
     echo `kvq "response" "$response"`,
-    echo `kv "misses" "$rank"`,
-    echo `kv "hits" 0`
+    echo `kv "misses" 0`,
+    echo `kv "hits" "$rank"`
     echo "},"
 done
 echo "]"

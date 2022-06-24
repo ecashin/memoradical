@@ -1,4 +1,7 @@
+use std::collections::{HashSet, LinkedList};
+
 use anyhow::{Context, Result};
+// use gloo_console::console_dbg;
 use gloo_file::{
     callbacks::{read_as_text, FileReader},
     File,
@@ -40,26 +43,12 @@ enum Face {
 
 struct Model {
     cards: Vec<Card>,
-    current_card: usize,
-    display_history: Vec<usize>,
+    current_card: Option<usize>,
+    display_history: LinkedList<usize>,
     node_ref: NodeRef,
     readers: Vec<FileReader>,
     showing_help: bool,
     visible_face: Face,
-}
-
-fn choose_card(cards: &[Card]) -> usize {
-    let rng = &mut rand::thread_rng();
-    let weights: Vec<_> = cards
-        .iter()
-        .map(|card| {
-            Beta::new((card.misses + 1) as f64, (card.hits + 1) as f64)
-                .unwrap()
-                .sample(rng)
-        })
-        .collect();
-    let dist = WeightedIndex::new(&weights).unwrap();
-    dist.sample(rng)
 }
 
 fn store_data() -> Result<String> {
@@ -82,6 +71,42 @@ fn store_data() -> Result<String> {
     Ok(value)
 }
 
+impl Model {
+    fn choose_card(&self) -> usize {
+        let rng = &mut rand::thread_rng();
+        let history: HashSet<_> = self.display_history.iter().copied().collect();
+        let weights: Vec<_> = self
+            .cards
+            .iter()
+            .enumerate()
+            .map(|(i, card)| {
+                if history.contains(&i) {
+                    0.0
+                } else {
+                    let shape1 = card.misses + 1;
+                    let shape2 = card.hits + 1;
+                    Beta::new(shape1 as f64, shape2 as f64).unwrap().sample(rng)
+                }
+            })
+            .collect();
+        let dist = WeightedIndex::new(&weights).unwrap();
+        dist.sample(rng)
+    }
+
+    fn record_display(&mut self, card: usize) {
+        let n = (self.cards.len() as f64).log2().round() as usize;
+        self.display_history.push_back(card);
+        if self.display_history.len() > n {
+            self.display_history.pop_front();
+        }
+        // console_dbg!(&self.display_history);
+    }
+
+    fn pop_last_displayed(&mut self) -> Option<usize> {
+        self.display_history.pop_back()
+    }
+}
+
 impl Component for Model {
     type Message = Msg;
     type Properties = ();
@@ -96,11 +121,11 @@ impl Component for Model {
             },
         };
         let cards: Vec<Card> = serde_json::from_str(&json.unwrap()).unwrap();
-        let current_card = choose_card(&cards);
+        let current_card = None;
         Self {
             cards,
             current_card,
-            display_history: vec![],
+            display_history: LinkedList::new(),
             visible_face: Face::Prompt,
             readers: vec![],
             node_ref: NodeRef::default(),
@@ -130,28 +155,38 @@ impl Component for Model {
                 true
             }
             Msg::Hit => {
-                self.cards[self.current_card].hits += 1;
-                self.visible_face = Face::Prompt;
-                ctx.link().send_message(Msg::StoreCards);
-                ctx.link().send_message(Msg::Next);
-                true
+                if let Some(card) = self.current_card {
+                    self.cards[card].hits += 1;
+                    self.visible_face = Face::Prompt;
+                    ctx.link().send_message(Msg::StoreCards);
+                    ctx.link().send_message(Msg::Next);
+                    true
+                } else {
+                    false
+                }
             }
             Msg::Miss => {
-                self.cards[self.current_card].misses += 1;
-                self.visible_face = Face::Prompt;
-                ctx.link().send_message(Msg::StoreCards);
-                ctx.link().send_message(Msg::Next);
-                true
+                if let Some(card) = self.current_card {
+                    self.cards[card].misses += 1;
+                    self.visible_face = Face::Prompt;
+                    ctx.link().send_message(Msg::StoreCards);
+                    ctx.link().send_message(Msg::Next);
+                    true
+                } else {
+                    false
+                }
             }
             Msg::Next => {
-                self.display_history.push(self.current_card);
-                self.current_card = choose_card(&self.cards);
+                if self.current_card.is_some() {
+                    self.record_display(self.current_card.unwrap());
+                }
+                self.current_card = Some(self.choose_card());
                 self.visible_face = Face::Prompt;
                 true
             }
             Msg::Prev => {
-                if !self.display_history.is_empty() {
-                    self.current_card = self.display_history.pop().unwrap();
+                if let Some(last_card) = self.pop_last_displayed() {
+                    self.current_card = Some(last_card);
                     self.visible_face = Face::Prompt;
                     true
                 } else {
@@ -188,7 +223,8 @@ impl Component for Model {
     }
 
     fn view(&self, ctx: &yew::Context<Self>) -> Html {
-        let card_html = if let Some(card) = self.cards.get(self.current_card) {
+        let card_html = if let Some(card_index) = self.current_card {
+            let card = &self.cards[card_index];
             let (text, bg_color) = match self.visible_face {
                 Face::Prompt => (card.prompt.clone(), "#EEE8AA"),
                 Face::Response => (card.response.clone(), "#C1FFC1"),
