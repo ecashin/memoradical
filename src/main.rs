@@ -1,4 +1,5 @@
 use anyhow::{Context, Result};
+use gloo_console::console_dbg;
 use gloo_file::{
     callbacks::{read_as_text, FileReader},
     File,
@@ -53,9 +54,12 @@ fn choose_card(cards: &[Card]) -> usize {
     let weights: Vec<_> = cards
         .iter()
         .map(|card| {
-            Beta::new((card.misses + 1) as f64, (card.hits + 1) as f64)
-                .unwrap()
-                .sample(rng)
+            let shape1 = card.misses + 1;
+            let shape2 = card.hits + 1;
+            let sample = Beta::new(shape1 as f64, shape2 as f64).unwrap().sample(rng);
+            let sample_view = format!("{sample:.8}");
+            console_dbg!((shape1, shape2, sample_view, &card.prompt));
+            sample
         })
         .collect();
     let dist = WeightedIndex::new(&weights).unwrap();
