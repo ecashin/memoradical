@@ -346,6 +346,7 @@ impl Component for Model {
                         <span>{"To go to the previous card without hitting or missing, click \"Prev\" or hit the \"p\" key."}</span>
                         <span>{" After you go backward, going forward results in new random draws for cards."}</span>
                     </p>
+                    <p>{"Check the \"reverse mode\" checkbox to use the other side of the cards as prompts."}</p>
                     <hr/>
                     <h2>{"Data"}</h2>
                     <p>{"Use the button at the top to upload a JSON file with new cards."}</p>
