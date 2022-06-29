@@ -22,6 +22,7 @@ enum Msg {
     Miss,
     Next,
     Prev,
+    ReverseModeToggle,
     StoreCards,
     StoreNewCards(String),
     UploadCards(Vec<File>),
@@ -35,10 +36,19 @@ struct Card {
     misses: usize,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 enum Face {
     Prompt,
     Response,
+}
+
+impl Face {
+    fn other_side(one: &Face) -> Face {
+        match one {
+            Face::Prompt => Face::Response,
+            Face::Response => Face::Prompt,
+        }
+    }
 }
 
 struct Model {
@@ -49,6 +59,7 @@ struct Model {
     readers: Vec<FileReader>,
     showing_help: bool,
     visible_face: Face,
+    reverse_mode: bool,
 }
 
 fn store_data() -> Result<String> {
@@ -130,6 +141,7 @@ impl Component for Model {
             readers: vec![],
             node_ref: NodeRef::default(),
             showing_help: true,
+            reverse_mode: false,
         }
     }
 
@@ -193,6 +205,10 @@ impl Component for Model {
                     false
                 }
             }
+            Msg::ReverseModeToggle => {
+                self.reverse_mode = !self.reverse_mode;
+                true
+            }
             Msg::StoreCards => {
                 let json = serde_json::to_string(&self.cards).unwrap();
                 LocalStorage::set(STORAGE_KEY_CARDS, &json)
@@ -225,7 +241,12 @@ impl Component for Model {
     fn view(&self, ctx: &yew::Context<Self>) -> Html {
         let card_html = if let Some(card_index) = self.current_card {
             let card = &self.cards[card_index];
-            let (text, bg_color) = match self.visible_face {
+            let face = if self.reverse_mode {
+                Face::other_side(&self.visible_face)
+            } else {
+                self.visible_face.clone()
+            };
+            let (text, bg_color) = match face {
                 Face::Prompt => (card.prompt.clone(), "#EEE8AA"),
                 Face::Response => (card.response.clone(), "#C1FFC1"),
             };
@@ -283,6 +304,23 @@ impl Component for Model {
                 }
             })
         };
+        let reverse_mode_html = html! {
+            <div class="form-check">
+                <input
+                    id="reverse-mode-checkbox"
+                    class="form-check-input"
+                    type={"checkbox"}
+                    value=""
+                    checked={ self.reverse_mode }
+                    autocomplete={"off"}
+                    onclick={ctx.link().callback(move |_| Msg::ReverseModeToggle)}
+                />
+                <label
+                    class="form-check-label"
+                    for="reverse-mode-checkbox">{"reverse mode"}
+                </label>
+            </div>
+        };
         if self.showing_help {
             html! {
                 <div>
@@ -308,6 +346,7 @@ impl Component for Model {
                         <span>{"To go to the previous card without hitting or missing, click \"Prev\" or hit the \"p\" key."}</span>
                         <span>{" After you go backward, going forward results in new random draws for cards."}</span>
                     </p>
+                    <p>{"Check the \"reverse mode\" checkbox to use the other side of the cards as prompts."}</p>
                     <hr/>
                     <h2>{"Data"}</h2>
                     <p>{"Use the button at the top to upload a JSON file with new cards."}</p>
@@ -320,6 +359,7 @@ impl Component for Model {
             html! {
                 <div id="memoradical" {onkeypress}>
                     <button onclick={ctx.link().callback(|_| Msg::Help(true))}>{"Help"}</button>
+                    {reverse_mode_html}
                     {upload_html}
                     {card_html}
                     <button ref={self.node_ref.clone()}
