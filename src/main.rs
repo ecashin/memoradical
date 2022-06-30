@@ -176,6 +176,8 @@ impl Component for Model {
             Msg::AddCard => {
                 let card = Card::new(&self.new_front_text, &self.new_back_text);
                 self.cards.push(card);
+                self.new_back_text = "".to_owned();
+                self.new_front_text = "".to_owned();
                 true
             }
             Msg::Flip => {
