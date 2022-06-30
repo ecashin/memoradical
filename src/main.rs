@@ -17,9 +17,11 @@ const STORAGE_KEY_CARDS: &str = "net.noserose.memoradical:cards";
 
 enum Msg {
     AddCard,
+    AddMode,
     Flip,
-    Help(bool),
+    HelpMode,
     Hit,
+    MemoMode,
     Miss,
     Next,
     Prev,
@@ -29,6 +31,12 @@ enum Msg {
     UpdateNewBackText(String),
     UpdateNewFrontText(String),
     UploadCards(Vec<File>),
+}
+
+enum Mode {
+    Memo,
+    Add,
+    Help,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -73,7 +81,7 @@ struct Model {
     new_back_text: String,
     node_ref: NodeRef,
     readers: Vec<FileReader>,
-    showing_help: bool,
+    mode: Mode,
     visible_face: Face,
     reverse_mode: bool,
 }
@@ -158,7 +166,7 @@ impl Component for Model {
             visible_face: Face::Prompt,
             readers: vec![],
             node_ref: NodeRef::default(),
-            showing_help: true,
+            mode: Mode::Help,
             reverse_mode: false,
         }
     }
@@ -181,6 +189,10 @@ impl Component for Model {
                 ctx.link().send_message(Msg::StoreCards);
                 true
             }
+            Msg::AddMode => {
+                self.mode = Mode::Add;
+                true
+            }
             Msg::Flip => {
                 self.visible_face = match self.visible_face {
                     Face::Prompt => Face::Response,
@@ -188,8 +200,8 @@ impl Component for Model {
                 };
                 true
             }
-            Msg::Help(yesno) => {
-                self.showing_help = yesno;
+            Msg::HelpMode => {
+                self.mode = Mode::Help;
                 true
             }
             Msg::Hit => {
@@ -202,6 +214,10 @@ impl Component for Model {
                 } else {
                     false
                 }
+            }
+            Msg::MemoMode => {
+                self.mode = Mode::Memo;
+                true
             }
             Msg::Miss => {
                 if let Some(card) = self.current_card {
@@ -273,6 +289,13 @@ impl Component for Model {
     }
 
     fn view(&self, ctx: &yew::Context<Self>) -> Html {
+        let mode_buttons = html! {
+            <div>
+                <button onclick={ctx.link().callback(|_| Msg::HelpMode)}>{"Help"}</button>
+                <button onclick={ctx.link().callback(|_| Msg::MemoMode)}>{"Memoradical"}</button>
+                <button onclick={ctx.link().callback(|_| Msg::AddMode)}>{"Add Card"}</button>
+            </div>
+        };
         let add_card_html = html! {
             <div>
                 <input
@@ -376,58 +399,67 @@ impl Component for Model {
                 </label>
             </div>
         };
-        if self.showing_help {
-            html! {
-                <div>
-                    <button onclick={ctx.link().callback(|_| Msg::Help(false))}>{"Go"}</button>
-                    <h2>{"Memoradical"}</h2>
-                    <p>{"Here is some help."}</p>
-                    <hr/>
-                    <h2>{"Local Only App"}</h2>
-                    <p>{"This web app runs on your browser and stores information on your local system."}</p>
-                    <p>
-                        <span>{"Your information never leaves your system."}</span>
-                        <span>{"It only requests HTML and "}</span>
-                        <a href="https://webassembly.org/">{"Web Assembly"}</a>
-                        <span>{" from the server."}</span>
-                    </p>
-                    <hr/>
-                    <h2>{"Usage"}</h2>
-                    <p>{"To flip the card, click \"Flip\" or hit the \"f\" key."}</p>
-                    <p>{"If you know the meaning of the word, click \"Hit\" or hit the \"h\" key."}</p>
-                    <p>{"If you know the meaning of the word, click \"Miss\" or hit the \"m\" key."}</p>
-                    <p>{"To go to the next card without hitting or missing, click \"Next\" or hit the \"n\" key."}</p>
-                    <p>
-                        <span>{"To go to the previous card without hitting or missing, click \"Prev\" or hit the \"p\" key."}</span>
-                        <span>{" After you go backward, going forward results in new random draws for cards."}</span>
-                    </p>
-                    <p>{"Check the \"reverse mode\" checkbox to use the other side of the cards as prompts."}</p>
-                    <hr/>
-                    <h2>{"Data"}</h2>
-                    <p>{"Use the button at the top to upload a JSON file with new cards."}</p>
-                    <p>{"Follow the format of the JSON displayed at the bottom of the page."}</p>
-                    <p>{"Misses make cards appear more frequently, but hits make them appear less frequently."}</p>
-                    <p>{"If no data is available, two dummy cards are displayed."}</p>
-                </div>
+        match self.mode {
+            Mode::Help => {
+                html! {
+                    <div>
+                        {mode_buttons}
+                        <h2>{"Memoradical"}</h2>
+                        <p>{"Here is some help."}</p>
+                        <hr/>
+                        <h2>{"Local Only App"}</h2>
+                        <p>{"This web app runs on your browser and stores information on your local system."}</p>
+                        <p>
+                            <span>{"Your information never leaves your system."}</span>
+                            <span>{"It only requests HTML and "}</span>
+                            <a href="https://webassembly.org/">{"Web Assembly"}</a>
+                            <span>{" from the server."}</span>
+                        </p>
+                        <hr/>
+                        <h2>{"Usage"}</h2>
+                        <p>{"To flip the card, click \"Flip\" or hit the \"f\" key."}</p>
+                        <p>{"If you know the meaning of the word, click \"Hit\" or hit the \"h\" key."}</p>
+                        <p>{"If you know the meaning of the word, click \"Miss\" or hit the \"m\" key."}</p>
+                        <p>{"To go to the next card without hitting or missing, click \"Next\" or hit the \"n\" key."}</p>
+                        <p>
+                            <span>{"To go to the previous card without hitting or missing, click \"Prev\" or hit the \"p\" key."}</span>
+                            <span>{" After you go backward, going forward results in new random draws for cards."}</span>
+                        </p>
+                        <p>{"Check the \"reverse mode\" checkbox to use the other side of the cards as prompts."}</p>
+                        <hr/>
+                        <h2>{"Data"}</h2>
+                        <p>{"Use the button at the top to upload a JSON file with new cards."}</p>
+                        <p>{"Follow the format of the JSON displayed at the bottom of the page."}</p>
+                        <p>{"Misses make cards appear more frequently, but hits make them appear less frequently."}</p>
+                        <p>{"If no data is available, two dummy cards are displayed."}</p>
+                    </div>
+                }
             }
-        } else {
-            html! {
-                <div id="memoradical" {onkeypress}>
-                    <button onclick={ctx.link().callback(|_| Msg::Help(true))}>{"Help"}</button>
-                    <br/>
-                    {add_card_html}
-                    <br/>
-                    {reverse_mode_html}
-                    {upload_html}
-                    {card_html}
-                    <button ref={self.node_ref.clone()}
-                        onclick={ctx.link().callback(|_| Msg::Flip)}>{ "Flip" }</button>
-                    <button onclick={ctx.link().callback(|_| Msg::Prev)}>{ "Prev" }</button>
-                    <button onclick={ctx.link().callback(|_| Msg::Next)}>{ "Next" }</button>
-                    <button onclick={ctx.link().callback(|_| Msg::Hit)}>{ "Hit" }</button>
-                    <button onclick={ctx.link().callback(|_| Msg::Miss)}>{ "Miss" }</button>
-                    {json_html}
-                </div>
+            Mode::Memo => {
+                html! {
+                    <div id="memoradical" {onkeypress}>
+                        {mode_buttons}
+                        <br/>
+                        {reverse_mode_html}
+                        {upload_html}
+                        {card_html}
+                        <button ref={self.node_ref.clone()}
+                            onclick={ctx.link().callback(|_| Msg::Flip)}>{ "Flip" }</button>
+                        <button onclick={ctx.link().callback(|_| Msg::Prev)}>{ "Prev" }</button>
+                        <button onclick={ctx.link().callback(|_| Msg::Next)}>{ "Next" }</button>
+                        <button onclick={ctx.link().callback(|_| Msg::Hit)}>{ "Hit" }</button>
+                        <button onclick={ctx.link().callback(|_| Msg::Miss)}>{ "Miss" }</button>
+                        {json_html}
+                    </div>
+                }
+            }
+            Mode::Add => {
+                html! {
+                    <div>
+                        {mode_buttons}
+                        {add_card_html}
+                    </div>
+                }
             }
         }
     }
