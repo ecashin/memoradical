@@ -33,6 +33,7 @@ enum Msg {
     UploadCards(Vec<File>),
 }
 
+#[derive(PartialEq)]
 enum Mode {
     Memo,
     Add,
@@ -291,9 +292,9 @@ impl Component for Model {
     fn view(&self, ctx: &yew::Context<Self>) -> Html {
         let mode_buttons = html! {
             <div>
-                <button onclick={ctx.link().callback(|_| Msg::HelpMode)}>{"Help"}</button>
-                <button onclick={ctx.link().callback(|_| Msg::MemoMode)}>{"Memoradical"}</button>
-                <button onclick={ctx.link().callback(|_| Msg::AddMode)}>{"Add Card"}</button>
+                <button disabled={self.mode == Mode::Help} onclick={ctx.link().callback(|_| Msg::HelpMode)}>{"Help"}</button>
+                <button disabled={self.mode == Mode::Memo} onclick={ctx.link().callback(|_| Msg::MemoMode)}>{"Memoradical"}</button>
+                <button disabled={self.mode == Mode::Add} onclick={ctx.link().callback(|_| Msg::AddMode)}>{"Add Card"}</button>
             </div>
         };
         let add_card_html = html! {
