@@ -16,6 +16,7 @@ use yew::prelude::*;
 const STORAGE_KEY_CARDS: &str = "net.noserose.memoradical:cards";
 
 enum Msg {
+    AddCard,
     Flip,
     Help(bool),
     Hit,
@@ -25,6 +26,8 @@ enum Msg {
     ReverseModeToggle,
     StoreCards,
     StoreNewCards(String),
+    UpdateNewBackText(String),
+    UpdateNewFrontText(String),
     UploadCards(Vec<File>),
 }
 
@@ -34,6 +37,17 @@ struct Card {
     response: String,
     hits: usize,
     misses: usize,
+}
+
+impl Card {
+    fn new(front: &str, back: &str) -> Card {
+        Card {
+            prompt: front.to_string(),
+            response: back.to_string(),
+            hits: 0,
+            misses: 0,
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -55,6 +69,8 @@ struct Model {
     cards: Vec<Card>,
     current_card: Option<usize>,
     display_history: LinkedList<usize>,
+    new_front_text: String,
+    new_back_text: String,
     node_ref: NodeRef,
     readers: Vec<FileReader>,
     showing_help: bool,
@@ -137,6 +153,8 @@ impl Component for Model {
             cards,
             current_card,
             display_history: LinkedList::new(),
+            new_back_text: "".to_owned(),
+            new_front_text: "".to_owned(),
             visible_face: Face::Prompt,
             readers: vec![],
             node_ref: NodeRef::default(),
@@ -155,6 +173,11 @@ impl Component for Model {
 
     fn update(&mut self, ctx: &yew::Context<Self>, msg: Self::Message) -> bool {
         match msg {
+            Msg::AddCard => {
+                let card = Card::new(&self.new_front_text, &self.new_back_text);
+                self.cards.push(card);
+                true
+            }
             Msg::Flip => {
                 self.visible_face = match self.visible_face {
                     Face::Prompt => Face::Response,
@@ -224,6 +247,14 @@ impl Component for Model {
                     .unwrap();
                 true
             }
+            Msg::UpdateNewBackText(text) => {
+                self.new_back_text = text;
+                true
+            }
+            Msg::UpdateNewFrontText(text) => {
+                self.new_front_text = text;
+                true
+            }
             Msg::UploadCards(files) => {
                 assert_eq!(files.len(), 1);
                 let task = {
@@ -239,6 +270,27 @@ impl Component for Model {
     }
 
     fn view(&self, ctx: &yew::Context<Self>) -> Html {
+        let add_card_html = html! {
+            <div>
+                <input
+                id="new-front" type="text" value={self.new_front_text.clone()}
+                oninput={ctx.link().callback(|e: InputEvent| {
+                        let input = e.target_unchecked_into::<HtmlInputElement>();
+                        Msg::UpdateNewFrontText(input.value())
+                })}
+                />
+                <input
+                id="new-back" type="text" value={self.new_back_text.clone()}
+                oninput={ctx.link().callback(|e: InputEvent| {
+                        let input = e.target_unchecked_into::<HtmlInputElement>();
+                        Msg::UpdateNewBackText(input.value())
+                })}
+                />
+                <button
+                    onclick={ctx.link().callback(|_| Msg::AddCard)}
+                >{"Add Card"}</button>
+            </div>
+        };
         let card_html = if let Some(card_index) = self.current_card {
             let card = &self.cards[card_index];
             let face = if self.reverse_mode {
@@ -359,6 +411,8 @@ impl Component for Model {
             html! {
                 <div id="memoradical" {onkeypress}>
                     <button onclick={ctx.link().callback(|_| Msg::Help(true))}>{"Help"}</button>
+                    <br/>
+                    {add_card_html}
                     {reverse_mode_html}
                     {upload_html}
                     {card_html}
