@@ -178,6 +178,7 @@ impl Component for Model {
                 self.cards.push(card);
                 self.new_back_text = "".to_owned();
                 self.new_front_text = "".to_owned();
+                ctx.link().send_message(Msg::StoreCards);
                 true
             }
             Msg::Flip => {
@@ -415,6 +416,7 @@ impl Component for Model {
                     <button onclick={ctx.link().callback(|_| Msg::Help(true))}>{"Help"}</button>
                     <br/>
                     {add_card_html}
+                    <br/>
                     {reverse_mode_html}
                     {upload_html}
                     {card_html}
