@@ -1,5 +1,14 @@
 # Memoradical
 
+## Trying
+
+You can try out Memoradical at the URL below.
+You can make and upload your own JSON data based on the example cards.
+
+https://ecashin.github.io/memoradical
+
+## Building
+
 Building the web app requires a Rust installation
 with cargo, the wasm target, and trunk.
 For details, please check out the [yew](https://yew.rs) documentation
