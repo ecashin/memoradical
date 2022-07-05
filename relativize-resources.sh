@@ -6,7 +6,8 @@ set -xe
 d=`dirname "$0"`
 test -d "$d/dist"
 cd "$d"
-trunk build  # (in case last time was "trunk serve")
+# (in case last time was "trunk serve" ...)
+RUSTFLAGS=--cfg=web_sys_unstable_apis trunk build
 ed dist/index.html <<EOF
 g/\/index-/s//.&/g
 w
