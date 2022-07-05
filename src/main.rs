@@ -162,7 +162,7 @@ impl Model {
 }
 
 async fn copy_cards_to_clipboard(cards: &[Card]) -> Result<()> {
-    let value = serde_json::to_string(cards).context("serializing cards")?;
+    let value = serde_json::to_string_pretty(cards).context("serializing cards")?;
     let navigator: web_sys::Navigator = web_sys::window().unwrap().navigator();
     console_dbg!("clipboard write");
     let write_promise = navigator.clipboard().unwrap().write_text(&value);
