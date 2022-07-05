@@ -1,6 +1,6 @@
 use std::collections::{HashSet, LinkedList};
 
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use gloo_console::console_dbg;
 use gloo_file::{
     callbacks::{read_as_text, FileReader},
@@ -165,11 +165,17 @@ async fn copy_cards_to_clipboard(cards: &[Card]) -> Result<()> {
     let value = serde_json::to_string_pretty(cards).context("serializing cards")?;
     let navigator: web_sys::Navigator = web_sys::window().unwrap().navigator();
     console_dbg!("clipboard write");
-    let write_promise = navigator.clipboard().unwrap().write_text(&value);
-    wasm_bindgen_futures::JsFuture::from(write_promise)
-        .await
-        .unwrap();
-    Ok(())
+    if let Some(clipboard) = navigator.clipboard() {
+        let write_promise = clipboard.write_text(&value);
+        let result = wasm_bindgen_futures::JsFuture::from(write_promise).await;
+        if let Err(e) = result {
+            Err(anyhow!("Cannot copy to clipboard: {:?}", e))
+        } else {
+            Ok(())
+        }
+    } else {
+        Err(anyhow!("Cannot obtain clipboard from browser"))
+    }
 }
 
 impl Component for Model {
