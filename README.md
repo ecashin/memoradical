@@ -7,7 +7,8 @@ You can make and upload your own JSON data based on the example cards.
 
 https://ecashin.github.io/memoradical
 
-Please see the online help before clicking "Go"
+Please see the online help
+before clicking the "Memoradical" button
 when visiting the app.
 
 ## Building
