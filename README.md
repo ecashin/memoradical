@@ -20,11 +20,20 @@ on getting started.
 
 To build and serve, use ...
 
-    trunk serve
+    RUSTFLAGS=--cfg=web_sys_unstable_apis trunk serve
 
-Or you can `trunk build` and copy the generated files to your web server.
+Or you can `RUSTFLAGS=--cfg=web_sys_unstable_apis trunk build`
+and copy the generated files to your web server.
 Unless it's at the root of the server,
 you will need to edit the links inside `dist/index.html`,
 so that `/` becomes `./` in the links.
 There is a convenience script you can use for that,
 `relativize-resources.sh`.
+
+The extra flag is needed to enable the unstable parts
+of `web-sys` that provide access to the browser clipboard.
+
+## VsCode
+
+You can set `rust.rustflags` in your `settings.json`
+to help VsCode to use experimental features.
