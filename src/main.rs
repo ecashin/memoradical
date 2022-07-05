@@ -1,7 +1,7 @@
 use std::collections::{HashSet, LinkedList};
 
 use anyhow::{Context, Result};
-// use gloo_console::console_dbg;
+use gloo_console::console_dbg;
 use gloo_file::{
     callbacks::{read_as_text, FileReader},
     File,
@@ -18,12 +18,14 @@ const STORAGE_KEY_CARDS: &str = "net.noserose.memoradical:cards";
 enum Msg {
     AddCard,
     AddMode,
+    CopyCards,
     Flip,
     HelpMode,
     Hit,
     MemoMode,
     Miss,
     Next,
+    Noop,
     Prev,
     ReverseModeToggle,
     StoreCards,
@@ -40,7 +42,7 @@ enum Mode {
     Help,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 struct Card {
     prompt: String,
     response: String,
@@ -143,6 +145,17 @@ impl Model {
     }
 }
 
+async fn copy_cards_to_clipboard(cards: &[Card]) -> Result<()> {
+    let value = serde_json::to_string(cards).context("serializing cards")?;
+    let navigator: web_sys::Navigator = web_sys::window().unwrap().navigator();
+    console_dbg!("clipboard write");
+    let write_promise = navigator.clipboard().unwrap().write_text(&value);
+    wasm_bindgen_futures::JsFuture::from(write_promise)
+        .await
+        .unwrap();
+    Ok(())
+}
+
 impl Component for Model {
     type Message = Msg;
     type Properties = ();
@@ -194,6 +207,19 @@ impl Component for Model {
                 self.mode = Mode::Add;
                 true
             }
+            Msg::CopyCards => {
+                let cards = self.cards.clone();
+                ctx.link().send_future(async move {
+                    match copy_cards_to_clipboard(&cards).await {
+                        Err(e) => {
+                            console_dbg!(&e);
+                        }
+                        Ok(_) => (),
+                    }
+                    Msg::Noop
+                });
+                true
+            }
             Msg::Flip => {
                 self.visible_face = match self.visible_face {
                     Face::Prompt => Face::Response,
@@ -239,6 +265,7 @@ impl Component for Model {
                 self.visible_face = Face::Prompt;
                 true
             }
+            Msg::Noop => false,
             Msg::Prev => {
                 if let Some(last_card) = self.pop_last_displayed() {
                     self.current_card = Some(last_card);
@@ -354,6 +381,9 @@ impl Component for Model {
                         }
                         Msg::UploadCards(result)
                     })}/>
+                <button onclick={ctx.link().callback(move |_| Msg::CopyCards)}>
+                    {"Copy Cards to Clipboard"}
+                </button>
             </div>
         };
         let json_html = {
