@@ -7,18 +7,22 @@ use gloo_file::{
     File,
 };
 use gloo_storage::{LocalStorage, Storage};
+use gloo_timers::callback::Interval;
 use rand::distributions::WeightedIndex;
 use rand_distr::{Beta, Distribution};
 use serde::{Deserialize, Serialize};
 use web_sys::{Event, HtmlElement, HtmlInputElement};
 use yew::prelude::*;
 
+const COPY_BORDER_FADE_MS: u32 = 50;
 const STORAGE_KEY_CARDS: &str = "net.noserose.memoradical:cards";
 
 enum Msg {
     AddCard,
     AddMode,
     CopyCards,
+    CopyCardsSuccess,
+    FadeCopyBorder,
     Flip,
     HelpMode,
     Hit,
@@ -78,6 +82,8 @@ impl Face {
 
 struct Model {
     cards: Vec<Card>,
+    copy_border_opacity: f32,
+    copy_border_fader: Option<Interval>,
     current_card: Option<usize>,
     display_history: LinkedList<usize>,
     new_front_text: String,
@@ -131,6 +137,16 @@ impl Model {
         dist.sample(rng)
     }
 
+    fn copy_button_style(&self) -> String {
+        if self.copy_border_opacity == 0.0 {
+            return "".to_owned();
+        }
+        format!(
+            "border-radius: 15%; border-width: thick; border-color: rgba(10, 220, 10, {})",
+            self.copy_border_opacity
+        )
+    }
+
     fn record_display(&mut self, card: usize) {
         let n = (self.cards.len() as f64).log2().round() as usize;
         self.display_history.push_back(card);
@@ -173,6 +189,8 @@ impl Component for Model {
         let current_card = None;
         Self {
             cards,
+            copy_border_opacity: 0.0,
+            copy_border_fader: None,
             current_card,
             display_history: LinkedList::new(),
             new_back_text: "".to_owned(),
@@ -213,11 +231,30 @@ impl Component for Model {
                     match copy_cards_to_clipboard(&cards).await {
                         Err(e) => {
                             console_dbg!(&e);
+                            Msg::Noop
                         }
-                        Ok(_) => (),
+                        Ok(_) => Msg::CopyCardsSuccess,
                     }
-                    Msg::Noop
                 });
+                true
+            }
+            Msg::CopyCardsSuccess => {
+                self.copy_border_opacity = 1.0;
+                let handle = {
+                    let link = ctx.link().clone();
+                    Interval::new(COPY_BORDER_FADE_MS, move || {
+                        link.send_message(Msg::FadeCopyBorder)
+                    })
+                };
+                self.copy_border_fader = Some(handle);
+                true
+            }
+            Msg::FadeCopyBorder => {
+                self.copy_border_opacity *= 0.9;
+                if self.copy_border_opacity < 0.2 {
+                    self.copy_border_fader = None;
+                    self.copy_border_opacity = 0.0;
+                }
                 true
             }
             Msg::Flip => {
@@ -381,7 +418,10 @@ impl Component for Model {
                         }
                         Msg::UploadCards(result)
                     })}/>
-                <button onclick={ctx.link().callback(move |_| Msg::CopyCards)}>
+                <button
+                    onclick={ctx.link().callback(move |_| Msg::CopyCards)}
+                    style={self.copy_button_style()}
+                >
                     {"Copy Cards to Clipboard"}
                 </button>
             </div>

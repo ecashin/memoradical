@@ -11,6 +11,7 @@ getrandom = { version = "0.2.6", features = ["js"] }
 gloo-console = "0.2.1"
 gloo-file = "0.2.1"
 gloo-storage = "0.2.1"
+gloo-timers = "0.2.4"
 js-sys = "0.3.57"
 rand = "0.8.5"
 rand_distr = "0.4.3"

@@ -228,6 +228,7 @@ dependencies = [
  "gloo-console",
  "gloo-file",
  "gloo-storage",
+ "gloo-timers",
  "js-sys",
  "rand",
  "rand_distr",
