@@ -494,7 +494,7 @@ impl Component for Model {
                     <div>
                         {mode_buttons}
                         <h2>{"Memoradical"}</h2>
-                        <p>{"Here is some help."}</p>
+                        <p>{"Here is some help for "}<a href="https://github.com/ecashin/memoradical">{"Memoradical"}</a>{"."}</p>
                         <hr/>
                         <h2>{"Local Only App"}</h2>
                         <p>{"This web app runs on your browser and stores information on your local system."}</p>
