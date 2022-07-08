@@ -109,6 +109,18 @@ fn store_data() -> Result<String> {
             hits: 0,
             misses: 0,
         },
+        Card {
+            prompt: "Who started _The Wheel of Time_?".to_owned(),
+            response: "Robert Jordan".to_owned(),
+            hits: 0,
+            misses: 0,
+        },
+        Card {
+            prompt: "Who finished _The Wheel of Time_?".to_owned(),
+            response: "Brandon Sanderson".to_owned(),
+            hits: 0,
+            misses: 0,
+        },
     ];
     let value = serde_json::to_string(&cards).context("serializing cards")?;
     LocalStorage::set(STORAGE_KEY_CARDS, value.clone()).context("storing cards")?;
