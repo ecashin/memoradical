@@ -344,6 +344,8 @@ impl Component for Model {
             Msg::StoreNewCards(json) => {
                 let cards: Vec<Card> = serde_json::from_str(&json).unwrap();
                 self.cards = cards;
+                self.current_card = Some(self.choose_card());
+                self.visible_face = Face::Prompt;
                 LocalStorage::set(STORAGE_KEY_CARDS, json)
                     .context("storing cards")
                     .unwrap();
