@@ -109,6 +109,18 @@ fn store_data() -> Result<String> {
             hits: 0,
             misses: 0,
         },
+        Card {
+            prompt: "Who started _The Wheel of Time_?".to_owned(),
+            response: "Robert Jordan".to_owned(),
+            hits: 0,
+            misses: 0,
+        },
+        Card {
+            prompt: "Who finished _The Wheel of Time_?".to_owned(),
+            response: "Brandon Sanderson".to_owned(),
+            hits: 0,
+            misses: 0,
+        },
     ];
     let value = serde_json::to_string(&cards).context("serializing cards")?;
     LocalStorage::set(STORAGE_KEY_CARDS, value.clone()).context("storing cards")?;
@@ -482,7 +494,7 @@ impl Component for Model {
                     <div>
                         {mode_buttons}
                         <h2>{"Memoradical"}</h2>
-                        <p>{"Here is some help."}</p>
+                        <p>{"Here is some help for "}<a href="https://github.com/ecashin/memoradical">{"Memoradical"}</a>{"."}</p>
                         <hr/>
                         <h2>{"Local Only App"}</h2>
                         <p>{"This web app runs on your browser and stores information on your local system."}</p>
