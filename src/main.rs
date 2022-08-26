@@ -237,6 +237,7 @@ impl Component for Model {
                 if self.mode == Mode::Edit {
                     self.cards[self.current_card.unwrap()].prompt = self.new_front_text.clone();
                     self.cards[self.current_card.unwrap()].response = self.new_back_text.clone();
+                    self.mode = Mode::Memo;
                 } else {
                     let card = Card::new(&self.new_front_text, &self.new_back_text);
                     self.cards.push(card);
