@@ -20,8 +20,10 @@ const STORAGE_KEY_CARDS: &str = "net.noserose.memoradical:cards";
 enum Msg {
     AddCard,
     AddMode,
+    AllCardsMode,
     CopyCards,
     CopyCardsSuccess,
+    DeleteCard(usize),
     Edit,
     FadeCopyBorder,
     Flip,
@@ -42,6 +44,7 @@ enum Msg {
 
 #[derive(PartialEq)]
 enum Mode {
+    AllCards,
     Memo,
     Add,
     Edit,
@@ -251,6 +254,10 @@ impl Component for Model {
                 self.mode = Mode::Add;
                 true
             }
+            Msg::AllCardsMode => {
+                self.mode = Mode::AllCards;
+                true
+            }
             Msg::CopyCards => {
                 let cards = self.cards.clone();
                 ctx.link().send_future(async move {
@@ -273,6 +280,18 @@ impl Component for Model {
                     })
                 };
                 self.copy_border_fader = Some(handle);
+                true
+            }
+            Msg::DeleteCard(i) => {
+                if let Some(curr) = self.current_card {
+                    if curr == i {
+                        self.current_card = None;
+                    } else if curr > i {
+                        self.current_card = Some(curr - 1);
+                    }
+                }
+                self.cards.remove(i);
+                ctx.link().send_message(Msg::StoreCards);
                 true
             }
             Msg::Edit => {
@@ -397,8 +416,9 @@ impl Component for Model {
         let mode_buttons = html! {
             <div>
                 <button disabled={self.mode == Mode::Help} onclick={ctx.link().callback(|_| Msg::HelpMode)}>{"Help"}</button>
-                <button disabled={self.mode == Mode::Memo} onclick={ctx.link().callback(|_| Msg::MemoMode)}>{"Memoradical"}</button>
+                <button disabled={self.mode == Mode::Memo} onclick={ctx.link().callback(|_| Msg::MemoMode)}>{"Quiz"}</button>
                 <button disabled={self.mode == Mode::Add || self.mode == Mode::Edit} onclick={ctx.link().callback(|_| Msg::AddMode)}>{"Add Card"}</button>
+                <button disabled={self.mode == Mode::AllCards} onclick={ctx.link().callback(|_| Msg::AllCardsMode)}>{"All Cards"}</button>
             </div>
         };
         let add_card_html = html! {
@@ -472,14 +492,6 @@ impl Component for Model {
                 </button>
             </div>
         };
-        let json_html = {
-            let json = serde_json::to_string_pretty(&self.cards).unwrap();
-            html! {
-                <pre>
-                    {json}
-                </pre>
-            }
-        };
         let onkeypress = {
             let link = ctx.link().clone();
             link.batch_callback(|e: yew::events::KeyboardEvent| {
@@ -519,6 +531,29 @@ impl Component for Model {
             </div>
         };
         match self.mode {
+            Mode::AllCards => {
+                let mut cards_html = vec![];
+                for (i, card) in self.cards.iter().enumerate() {
+                    let button = html! {
+                        <button onclick={ctx.link().callback(move |_| Msg::DeleteCard(i))}>
+                            {"Delete"}
+                        </button>
+                    };
+                    cards_html.push(html! {
+                        <tr>
+                            <td>{&card.prompt}</td>
+                            <td>{&card.response}</td>
+                            <td>{button}</td>
+                        </tr>
+                    });
+                }
+                html! {
+                    <div>
+                        {mode_buttons}
+                        {cards_html}
+                    </div>
+                }
+            }
             Mode::Help => {
                 html! {
                     <div>
@@ -572,7 +607,6 @@ impl Component for Model {
                         <button onclick={ctx.link().callback(|_| Msg::Hit)}>{ "Hit" }</button>
                         <button onclick={ctx.link().callback(|_| Msg::Miss)}>{ "Miss" }</button>
                         <button onclick={ctx.link().callback(|_| Msg::Edit)}>{ "Edit" }</button>
-                        {json_html}
                     </div>
                 }
             }
