@@ -22,6 +22,7 @@ enum Msg {
     AddMode,
     CopyCards,
     CopyCardsSuccess,
+    Edit,
     FadeCopyBorder,
     Flip,
     HelpMode,
@@ -43,6 +44,7 @@ enum Msg {
 enum Mode {
     Memo,
     Add,
+    Edit,
     Help,
 }
 
@@ -232,8 +234,13 @@ impl Component for Model {
     fn update(&mut self, ctx: &yew::Context<Self>, msg: Self::Message) -> bool {
         match msg {
             Msg::AddCard => {
-                let card = Card::new(&self.new_front_text, &self.new_back_text);
-                self.cards.push(card);
+                if self.mode == Mode::Edit {
+                    self.cards[self.current_card.unwrap()].prompt = self.new_front_text.clone();
+                    self.cards[self.current_card.unwrap()].response = self.new_back_text.clone();
+                } else {
+                    let card = Card::new(&self.new_front_text, &self.new_back_text);
+                    self.cards.push(card);
+                }
                 self.new_back_text = "".to_owned();
                 self.new_front_text = "".to_owned();
                 ctx.link().send_message(Msg::StoreCards);
@@ -266,6 +273,18 @@ impl Component for Model {
                 };
                 self.copy_border_fader = Some(handle);
                 true
+            }
+            Msg::Edit => {
+                let mut redraw = false;
+                if let Some(card_index) = self.current_card {
+                    if let Some(card) = self.cards.get(card_index) {
+                        redraw = true;
+                        self.new_front_text = card.prompt.clone();
+                        self.new_back_text = card.response.clone();
+                        self.mode = Mode::Edit;
+                    }
+                }
+                redraw
             }
             Msg::FadeCopyBorder => {
                 self.copy_border_opacity *= 0.9;
@@ -468,6 +487,8 @@ impl Component for Model {
                     Some(Msg::Next)
                 } else if k == "p" {
                     Some(Msg::Prev)
+                } else if k == "e" {
+                    Some(Msg::Edit)
                 } else {
                     None
                 }
@@ -516,6 +537,7 @@ impl Component for Model {
                             <span>{"To go to the previous card without hitting or missing, click \"Prev\" or hit the \"p\" key."}</span>
                             <span>{" After you go backward, going forward results in new random draws for cards."}</span>
                         </p>
+                        <p>{"To edit a card, click the \"Edit\" button or hit \"e\"."}</p>
                         <p>{"(You might need to click a button before using the keyboard shortcuts.)"}</p>
                         <p>{"Check the \"reverse mode\" checkbox to use the other side of the cards as prompts."}</p>
                         <p>{"Adding cards is supported, but copy, edit, and upload JSON for other card modifications."}</p>
@@ -542,11 +564,12 @@ impl Component for Model {
                         <button onclick={ctx.link().callback(|_| Msg::Next)}>{ "Next" }</button>
                         <button onclick={ctx.link().callback(|_| Msg::Hit)}>{ "Hit" }</button>
                         <button onclick={ctx.link().callback(|_| Msg::Miss)}>{ "Miss" }</button>
+                        <button onclick={ctx.link().callback(|_| Msg::Edit)}>{ "Edit" }</button>
                         {json_html}
                     </div>
                 }
             }
-            Mode::Add => {
+            Mode::Add | Mode::Edit => {
                 html! {
                     <div>
                         {mode_buttons}
