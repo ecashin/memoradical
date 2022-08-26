@@ -539,8 +539,9 @@ impl Component for Model {
                             {"Delete"}
                         </button>
                     };
+                    let row_color = if i % 2 == 0 { "#dde" } else { "#fff" };
                     cards_html.push(html! {
-                        <tr>
+                        <tr style={format!("background-color:{}", row_color)}>
                             <td>{&card.prompt}</td>
                             <td>{&card.response}</td>
                             <td>{button}</td>
@@ -550,7 +551,16 @@ impl Component for Model {
                 html! {
                     <div>
                         {mode_buttons}
-                        {cards_html}
+                        <table style="padding: 1ex; tr:nth-of-type(odd) {
+                            background-color:#ccc;
+                            ">
+                            <tr>
+                                <th>{"Prompt"}</th>
+                                <th>{"Response"}</th>
+                                <th></th>
+                            </tr>
+                            {cards_html}
+                        </table>
                     </div>
                 }
             }
