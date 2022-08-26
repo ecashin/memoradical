@@ -398,7 +398,7 @@ impl Component for Model {
             <div>
                 <button disabled={self.mode == Mode::Help} onclick={ctx.link().callback(|_| Msg::HelpMode)}>{"Help"}</button>
                 <button disabled={self.mode == Mode::Memo} onclick={ctx.link().callback(|_| Msg::MemoMode)}>{"Memoradical"}</button>
-                <button disabled={self.mode == Mode::Add} onclick={ctx.link().callback(|_| Msg::AddMode)}>{"Add Card"}</button>
+                <button disabled={self.mode == Mode::Add || self.mode == Mode::Edit} onclick={ctx.link().callback(|_| Msg::AddMode)}>{"Add Card"}</button>
             </div>
         };
         let add_card_html = html! {
