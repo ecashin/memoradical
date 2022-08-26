@@ -419,7 +419,13 @@ impl Component for Model {
                 />
                 <button
                     onclick={ctx.link().callback(|_| Msg::AddCard)}
-                >{"Add Card"}</button>
+                >{
+                    if self.mode == Mode::Edit {
+                        "Update Card"
+                    } else {
+                        "Add Card"
+                    }
+                }</button>
             </div>
         };
         let card_html = if let Some(card_index) = self.current_card {
