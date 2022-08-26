@@ -599,6 +599,10 @@ impl Component for Model {
                         <p>{"Follow the format of the JSON displayed at the bottom of the page."}</p>
                         <p>{"Misses make cards appear more frequently, but hits make them appear less frequently."}</p>
                         <p>{"If no data is available, two dummy cards are displayed."}</p>
+                        <h2>{"Tips"}</h2>
+                        <p>{"After going through a few cards, use \"p\" to go back through recent history."}</p>
+                        <p>{"If you still don't remember, you can record another miss and use \"p\" again twice to resume time travel."}</p>
+                        <p>{"The history is limited to a length on the order of the logarithm of the number of cards."}</p>
                     </div>
                 }
             }
