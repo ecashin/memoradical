@@ -1,3 +1,4 @@
+use std::cmp::Ordering;
 use std::collections::{HashSet, LinkedList};
 
 use anyhow::{anyhow, Context, Result};
@@ -29,7 +30,6 @@ enum Msg {
     Flip,
     HelpMode,
     Hit,
-    MemoMode,
     Miss,
     Next,
     Noop,
@@ -37,6 +37,7 @@ enum Msg {
     ReverseModeToggle,
     StoreCards,
     StoreNewCards(String),
+    StudyMode,
     UpdateNewBackText(String),
     UpdateNewFrontText(String),
     UploadCards(Vec<File>),
@@ -44,11 +45,11 @@ enum Msg {
 
 #[derive(PartialEq)]
 enum Mode {
-    AllCards,
-    Memo,
     Add,
+    AllCards,
     Edit,
     Help,
+    Study,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -96,6 +97,7 @@ struct Model {
     node_ref: NodeRef,
     readers: Vec<FileReader>,
     mode: Mode,
+    need_key_focus: bool,
     visible_face: Face,
     reverse_mode: bool,
 }
@@ -133,6 +135,13 @@ fn store_data() -> Result<String> {
 }
 
 impl Model {
+    fn change_mode(&mut self, new_mode: Mode) {
+        if new_mode == Mode::Study && self.mode != Mode::Study {
+            self.need_key_focus = true;
+        }
+        self.mode = new_mode;
+    }
+
     fn choose_card(&self) -> usize {
         let rng = &mut rand::thread_rng();
         let history: HashSet<_> = self.display_history.iter().copied().collect();
@@ -222,12 +231,13 @@ impl Component for Model {
             readers: vec![],
             node_ref: NodeRef::default(),
             mode: Mode::Help,
+            need_key_focus: true,
             reverse_mode: false,
         }
     }
 
-    fn rendered(&mut self, _ctx: &yew::Context<Self>, first_render: bool) {
-        if first_render {
+    fn rendered(&mut self, _ctx: &yew::Context<Self>, _first_render: bool) {
+        if self.need_key_focus {
             if let Some(elt) = self.node_ref.cast::<HtmlElement>() {
                 elt.focus().expect("focus on div");
             }
@@ -235,12 +245,12 @@ impl Component for Model {
     }
 
     fn update(&mut self, ctx: &yew::Context<Self>, msg: Self::Message) -> bool {
-        match msg {
+        let need_render = match msg {
             Msg::AddCard => {
                 if self.mode == Mode::Edit {
                     self.cards[self.current_card.unwrap()].prompt = self.new_front_text.clone();
                     self.cards[self.current_card.unwrap()].response = self.new_back_text.clone();
-                    self.mode = Mode::Memo;
+                    self.change_mode(Mode::Study);
                 } else {
                     let card = Card::new(&self.new_front_text, &self.new_back_text);
                     self.cards.push(card);
@@ -251,11 +261,11 @@ impl Component for Model {
                 true
             }
             Msg::AddMode => {
-                self.mode = Mode::Add;
+                self.change_mode(Mode::Add);
                 true
             }
             Msg::AllCardsMode => {
-                self.mode = Mode::AllCards;
+                self.change_mode(Mode::AllCards);
                 true
             }
             Msg::CopyCards => {
@@ -284,12 +294,13 @@ impl Component for Model {
             }
             Msg::DeleteCard(i) => {
                 if let Some(curr) = self.current_card {
-                    if curr == i {
-                        self.current_card = None;
-                    } else if curr > i {
-                        self.current_card = Some(curr - 1);
-                    }
+                    self.current_card = match curr.cmp(&i) {
+                        Ordering::Equal => None,
+                        Ordering::Greater => Some(curr - 1),
+                        Ordering::Less => Some(curr),
+                    };
                 }
+                self.display_history.clear(); // ... because the numbers changed
                 self.cards.remove(i);
                 ctx.link().send_message(Msg::StoreCards);
                 true
@@ -301,7 +312,7 @@ impl Component for Model {
                         redraw = true;
                         self.new_front_text = card.prompt.clone();
                         self.new_back_text = card.response.clone();
-                        self.mode = Mode::Edit;
+                        self.change_mode(Mode::Edit);
                     }
                 }
                 redraw
@@ -322,7 +333,7 @@ impl Component for Model {
                 true
             }
             Msg::HelpMode => {
-                self.mode = Mode::Help;
+                self.change_mode(Mode::Help);
                 true
             }
             Msg::Hit => {
@@ -335,10 +346,6 @@ impl Component for Model {
                 } else {
                     false
                 }
-            }
-            Msg::MemoMode => {
-                self.mode = Mode::Memo;
-                true
             }
             Msg::Miss => {
                 if let Some(card) = self.current_card {
@@ -390,6 +397,10 @@ impl Component for Model {
                     .unwrap();
                 true
             }
+            Msg::StudyMode => {
+                self.change_mode(Mode::Study);
+                true
+            }
             Msg::UpdateNewBackText(text) => {
                 self.new_back_text = text;
                 true
@@ -409,6 +420,12 @@ impl Component for Model {
                 self.readers.push(task);
                 true
             }
+        };
+        if self.mode == Mode::Study && self.current_card.is_none() {
+            self.current_card = Some(self.choose_card());
+            true
+        } else {
+            need_render
         }
     }
 
@@ -416,7 +433,7 @@ impl Component for Model {
         let mode_buttons = html! {
             <div>
                 <button disabled={self.mode == Mode::Help} onclick={ctx.link().callback(|_| Msg::HelpMode)}>{"Help"}</button>
-                <button disabled={self.mode == Mode::Memo} onclick={ctx.link().callback(|_| Msg::MemoMode)}>{"Quiz"}</button>
+                <button disabled={self.mode == Mode::Study} onclick={ctx.link().callback(|_| Msg::StudyMode)}>{"Study"}</button>
                 <button disabled={self.mode == Mode::Add || self.mode == Mode::Edit} onclick={ctx.link().callback(|_| Msg::AddMode)}>{"Add Card"}</button>
                 <button disabled={self.mode == Mode::AllCards} onclick={ctx.link().callback(|_| Msg::AllCardsMode)}>{"All Cards"}</button>
             </div>
@@ -551,6 +568,7 @@ impl Component for Model {
                 html! {
                     <div>
                         {mode_buttons}
+                        {upload_html}
                         <table style="padding: 1ex; tr:nth-of-type(odd) {
                             background-color:#ccc;
                             ">
@@ -606,13 +624,12 @@ impl Component for Model {
                     </div>
                 }
             }
-            Mode::Memo => {
+            Mode::Study => {
                 html! {
                     <div id="memoradical" {onkeypress}>
                         {mode_buttons}
                         <br/>
                         {reverse_mode_html}
-                        {upload_html}
                         {card_html}
                         <button ref={self.node_ref.clone()}
                             onclick={ctx.link().callback(|_| Msg::Flip)}>{ "Flip" }</button>
