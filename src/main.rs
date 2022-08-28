@@ -551,6 +551,7 @@ impl Component for Model {
                 html! {
                     <div>
                         {mode_buttons}
+                        {upload_html}
                         <table style="padding: 1ex; tr:nth-of-type(odd) {
                             background-color:#ccc;
                             ">
@@ -612,7 +613,6 @@ impl Component for Model {
                         {mode_buttons}
                         <br/>
                         {reverse_mode_html}
-                        {upload_html}
                         {card_html}
                         <button ref={self.node_ref.clone()}
                             onclick={ctx.link().callback(|_| Msg::Flip)}>{ "Flip" }</button>
