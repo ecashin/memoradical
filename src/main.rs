@@ -244,7 +244,7 @@ impl Component for Model {
     }
 
     fn update(&mut self, ctx: &yew::Context<Self>, msg: Self::Message) -> bool {
-        match msg {
+        let need_render = match msg {
             Msg::AddCard => {
                 if self.mode == Mode::Edit {
                     self.cards[self.current_card.unwrap()].prompt = self.new_front_text.clone();
@@ -418,6 +418,12 @@ impl Component for Model {
                 self.readers.push(task);
                 true
             }
+        };
+        if self.mode == Mode::Study && self.current_card.is_none() {
+            self.current_card = Some(self.choose_card());
+            true
+        } else {
+            need_render
         }
     }
 
