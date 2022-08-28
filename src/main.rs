@@ -29,7 +29,6 @@ enum Msg {
     Flip,
     HelpMode,
     Hit,
-    MemoMode,
     Miss,
     Next,
     Noop,
@@ -37,6 +36,7 @@ enum Msg {
     ReverseModeToggle,
     StoreCards,
     StoreNewCards(String),
+    StudyMode,
     UpdateNewBackText(String),
     UpdateNewFrontText(String),
     UploadCards(Vec<File>),
@@ -44,11 +44,11 @@ enum Msg {
 
 #[derive(PartialEq)]
 enum Mode {
-    AllCards,
-    Memo,
     Add,
+    AllCards,
     Edit,
     Help,
+    Study,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -135,7 +135,7 @@ fn store_data() -> Result<String> {
 
 impl Model {
     fn change_mode(&mut self, new_mode: Mode) {
-        if new_mode == Mode::Memo && self.mode != Mode::Memo {
+        if new_mode == Mode::Study && self.mode != Mode::Study {
             self.need_key_focus = true;
         }
         self.mode = new_mode;
@@ -249,7 +249,7 @@ impl Component for Model {
                 if self.mode == Mode::Edit {
                     self.cards[self.current_card.unwrap()].prompt = self.new_front_text.clone();
                     self.cards[self.current_card.unwrap()].response = self.new_back_text.clone();
-                    self.change_mode(Mode::Memo);
+                    self.change_mode(Mode::Study);
                 } else {
                     let card = Card::new(&self.new_front_text, &self.new_back_text);
                     self.cards.push(card);
@@ -345,10 +345,6 @@ impl Component for Model {
                     false
                 }
             }
-            Msg::MemoMode => {
-                self.change_mode(Mode::Memo);
-                true
-            }
             Msg::Miss => {
                 if let Some(card) = self.current_card {
                     self.cards[card].misses += 1;
@@ -399,6 +395,10 @@ impl Component for Model {
                     .unwrap();
                 true
             }
+            Msg::StudyMode => {
+                self.change_mode(Mode::Study);
+                true
+            }
             Msg::UpdateNewBackText(text) => {
                 self.new_back_text = text;
                 true
@@ -425,7 +425,7 @@ impl Component for Model {
         let mode_buttons = html! {
             <div>
                 <button disabled={self.mode == Mode::Help} onclick={ctx.link().callback(|_| Msg::HelpMode)}>{"Help"}</button>
-                <button disabled={self.mode == Mode::Memo} onclick={ctx.link().callback(|_| Msg::MemoMode)}>{"Study"}</button>
+                <button disabled={self.mode == Mode::Study} onclick={ctx.link().callback(|_| Msg::StudyMode)}>{"Study"}</button>
                 <button disabled={self.mode == Mode::Add || self.mode == Mode::Edit} onclick={ctx.link().callback(|_| Msg::AddMode)}>{"Add Card"}</button>
                 <button disabled={self.mode == Mode::AllCards} onclick={ctx.link().callback(|_| Msg::AllCardsMode)}>{"All Cards"}</button>
             </div>
@@ -616,7 +616,7 @@ impl Component for Model {
                     </div>
                 }
             }
-            Mode::Memo => {
+            Mode::Study => {
                 html! {
                     <div id="memoradical" {onkeypress}>
                         {mode_buttons}
