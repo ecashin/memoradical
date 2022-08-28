@@ -96,6 +96,7 @@ struct Model {
     node_ref: NodeRef,
     readers: Vec<FileReader>,
     mode: Mode,
+    need_key_focus: bool,
     visible_face: Face,
     reverse_mode: bool,
 }
@@ -133,6 +134,13 @@ fn store_data() -> Result<String> {
 }
 
 impl Model {
+    fn change_mode(&mut self, new_mode: Mode) {
+        if new_mode == Mode::Memo && self.mode != Mode::Memo {
+            self.need_key_focus = true;
+        }
+        self.mode = new_mode;
+    }
+
     fn choose_card(&self) -> usize {
         let rng = &mut rand::thread_rng();
         let history: HashSet<_> = self.display_history.iter().copied().collect();
@@ -222,12 +230,13 @@ impl Component for Model {
             readers: vec![],
             node_ref: NodeRef::default(),
             mode: Mode::Help,
+            need_key_focus: true,
             reverse_mode: false,
         }
     }
 
-    fn rendered(&mut self, _ctx: &yew::Context<Self>, first_render: bool) {
-        if first_render {
+    fn rendered(&mut self, _ctx: &yew::Context<Self>, _first_render: bool) {
+        if self.need_key_focus {
             if let Some(elt) = self.node_ref.cast::<HtmlElement>() {
                 elt.focus().expect("focus on div");
             }
@@ -240,7 +249,7 @@ impl Component for Model {
                 if self.mode == Mode::Edit {
                     self.cards[self.current_card.unwrap()].prompt = self.new_front_text.clone();
                     self.cards[self.current_card.unwrap()].response = self.new_back_text.clone();
-                    self.mode = Mode::Memo;
+                    self.change_mode(Mode::Memo);
                 } else {
                     let card = Card::new(&self.new_front_text, &self.new_back_text);
                     self.cards.push(card);
@@ -251,11 +260,11 @@ impl Component for Model {
                 true
             }
             Msg::AddMode => {
-                self.mode = Mode::Add;
+                self.change_mode(Mode::Add);
                 true
             }
             Msg::AllCardsMode => {
-                self.mode = Mode::AllCards;
+                self.change_mode(Mode::AllCards);
                 true
             }
             Msg::CopyCards => {
@@ -301,7 +310,7 @@ impl Component for Model {
                         redraw = true;
                         self.new_front_text = card.prompt.clone();
                         self.new_back_text = card.response.clone();
-                        self.mode = Mode::Edit;
+                        self.change_mode(Mode::Edit);
                     }
                 }
                 redraw
@@ -322,7 +331,7 @@ impl Component for Model {
                 true
             }
             Msg::HelpMode => {
-                self.mode = Mode::Help;
+                self.change_mode(Mode::Help);
                 true
             }
             Msg::Hit => {
@@ -337,7 +346,7 @@ impl Component for Model {
                 }
             }
             Msg::MemoMode => {
-                self.mode = Mode::Memo;
+                self.change_mode(Mode::Memo);
                 true
             }
             Msg::Miss => {
