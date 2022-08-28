@@ -1,3 +1,4 @@
+use std::cmp::Ordering;
 use std::collections::{HashSet, LinkedList};
 
 use anyhow::{anyhow, Context, Result};
@@ -293,12 +294,13 @@ impl Component for Model {
             }
             Msg::DeleteCard(i) => {
                 if let Some(curr) = self.current_card {
-                    if curr == i {
-                        self.current_card = None;
-                    } else if curr > i {
-                        self.current_card = Some(curr - 1);
-                    }
+                    self.current_card = match curr.cmp(&i) {
+                        Ordering::Equal => None,
+                        Ordering::Greater => Some(curr - 1),
+                        Ordering::Less => Some(curr),
+                    };
                 }
+                self.display_history.clear(); // ... because the numbers changed
                 self.cards.remove(i);
                 ctx.link().send_message(Msg::StoreCards);
                 true
