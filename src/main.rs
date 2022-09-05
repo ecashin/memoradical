@@ -25,7 +25,7 @@ enum Msg {
     CopyCards,
     CopyCardsSuccess,
     DeleteCard(usize),
-    Edit,
+    Edit(Option<usize>), // None means self's current card
     FadeCopyBorder,
     Flip,
     HelpMode,
@@ -352,11 +352,13 @@ impl Component for Model {
                 }
                 true
             }
-            Msg::Edit => {
+            Msg::Edit(i) => {
                 let mut redraw = false;
-                if let Some(card_index) = self.current_card {
-                    if let Some(card) = self.cards.get(card_index) {
+                let card_index = if i.is_none() { self.current_card } else { i };
+                if let Some(i) = card_index {
+                    if let Some(card) = self.cards.get(i) {
                         redraw = true;
+                        self.current_card = Some(i);
                         self.new_front_text = card.prompt.clone();
                         self.new_back_text = card.response.clone();
                         self.change_mode(Mode::Edit);
@@ -581,7 +583,7 @@ impl Component for Model {
                 } else if k == "p" {
                     Some(Msg::Prev)
                 } else if k == "e" {
-                    Some(Msg::Edit)
+                    Some(Msg::Edit(None))
                 } else {
                     None
                 }
@@ -614,7 +616,12 @@ impl Component for Model {
                         } else {
                             "Delete"
                         };
-                    let button = html! {
+                    let edit_button = html! {
+                        <button onclick={ctx.link().callback(move |_| Msg::Edit(Some(i)))}>
+                            {"Edit"}
+                        </button>
+                    };
+                    let delete_button = html! {
                         <button onclick={ctx.link().callback(move |_| Msg::DeleteCard(i))}>
                             {delete_button_label}
                         </button>
@@ -624,7 +631,8 @@ impl Component for Model {
                         <tr style={format!("background-color:{}", row_color)}>
                             <td>{&card.prompt}</td>
                             <td>{&card.response}</td>
-                            <td>{button}</td>
+                            <td>{edit_button}</td>
+                            <td>{delete_button}</td>
                         </tr>
                     });
                 }
@@ -701,7 +709,7 @@ impl Component for Model {
                         <button onclick={ctx.link().callback(|_| Msg::Next)}>{ "Next" }</button>
                         <button onclick={ctx.link().callback(|_| Msg::Hit)}>{ "Hit" }</button>
                         <button onclick={ctx.link().callback(|_| Msg::Miss)}>{ "Miss" }</button>
-                        <button onclick={ctx.link().callback(|_| Msg::Edit)}>{ "Edit" }</button>
+                        <button onclick={ctx.link().callback(|_| Msg::Edit(None))}>{ "Edit" }</button>
                     </div>
                 }
             }
