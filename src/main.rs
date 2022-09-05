@@ -654,6 +654,70 @@ impl Component for Model {
             }
             Mode::Help => {
                 let title = format!("Memoradical v{}", env!("CARGO_PKG_VERSION"));
+                let credits_html = {
+                    let graphics_source_link = {
+                        let url =
+                            "https://github.com/twitter/twemoji/blob/master/assets/svg/1f913.svg";
+                        html! {
+                            <a href={url}>{url}</a>
+                        }
+                    };
+                    let graphics_source_li = html! {
+                        <li>
+                            {"Graphics Source: "}
+                            {graphics_source_link}
+                        </li>
+                    };
+                    let graphics_license_link = {
+                        let url = "https://creativecommons.org/licenses/by/4.0/";
+                        html! {
+                            <a href={url}>{url}</a>
+                        }
+                    };
+                    let graphics_license_li = html! {
+                        <li>
+                            {"Graphics License: CC-BY 4.0 ("}
+                            {graphics_license_link}
+                            {")"}
+                        </li>
+                    };
+                    let graphics_author_link = {
+                        let url = "https://github.com/twitter/twemoji";
+                        html! {
+                            <a href={url}>{url}</a>
+                        }
+                    };
+                    let graphics_author_li = html! {
+                        <li>
+                            {"Graphics Author: Copyright 2020 Twitter, Inc and other contributors ("}
+                            {graphics_author_link}
+                            {")"}
+                        </li>
+                    };
+                    let where_link = {
+                        let url = "https://favicon.io/emoji-favicons/nerd-face";
+                        html! {
+                            <a href={url}>
+                                {"at favicon.io"}
+                            </a>
+                        }
+                    };
+                    html! {
+                        <div>
+                            <p>
+                                {"This favicon was generated "}
+                                {where_link}
+                                {" using the following graphics from Twitter Twemoji:"}
+                            </p>
+                            <ul>
+                            <li>{"Graphics Title: 1f913.svg"}</li>
+                            {graphics_author_li}
+                            {graphics_source_li}
+                            {graphics_license_li}
+                            </ul>
+                        </div>
+                    }
+                };
                 html! {
                     <div>
                         {mode_buttons}
@@ -692,6 +756,8 @@ impl Component for Model {
                         <p>{"After going through a few cards, use \"p\" to go back through recent history."}</p>
                         <p>{"If you still don't remember, you can record another miss and use \"p\" again twice to resume time travel."}</p>
                         <p>{"The history is limited to a length on the order of the logarithm of the number of cards."}</p>
+                        <h2>{"Credits"}</h2>
+                        {credits_html}
                     </div>
                 }
             }
