@@ -58,6 +58,8 @@ struct Card {
     response: String,
     hits: usize,
     misses: usize,
+    reverse_hits: Option<usize>,
+    reverse_misses: Option<usize>,
 }
 
 impl Card {
@@ -67,6 +69,8 @@ impl Card {
             response: back.to_string(),
             hits: 0,
             misses: 0,
+            reverse_hits: None,
+            reverse_misses: None,
         }
     }
 }
@@ -103,30 +107,56 @@ struct Model {
 }
 
 fn store_data() -> Result<String> {
+    let reverse_hits = None;
+    let reverse_misses = None;
     let cards: Vec<Card> = vec![
         Card {
-            prompt: "What is to the left of right?".to_owned(),
-            response: "Left".to_owned(),
+            prompt: "What is the key for flipping a card?".to_owned(),
+            response: "\"f\"".to_owned(),
             hits: 0,
             misses: 0,
+            reverse_hits,
+            reverse_misses,
         },
         Card {
-            prompt: "What is to the right of left?".to_owned(),
-            response: "Right".to_owned(),
+            prompt: "What is the key for registering a \"hit\"?".to_owned(),
+            response: "\"h\"".to_owned(),
             hits: 0,
             misses: 0,
+            reverse_hits,
+            reverse_misses,
         },
         Card {
-            prompt: "Who started _The Wheel of Time_?".to_owned(),
-            response: "Robert Jordan".to_owned(),
+            prompt: "What is the key for registering a \"miss\"?".to_owned(),
+            response: "\"m\"".to_owned(),
             hits: 0,
             misses: 0,
+            reverse_hits,
+            reverse_misses,
         },
         Card {
-            prompt: "Who finished _The Wheel of Time_?".to_owned(),
-            response: "Brandon Sanderson".to_owned(),
+            prompt: "What key shows the previous card?".to_owned(),
+            response: "\"p\"".to_owned(),
             hits: 0,
             misses: 0,
+            reverse_hits,
+            reverse_misses,
+        },
+        Card {
+            prompt: "What key shows the next card without registering hit or miss?".to_owned(),
+            response: "\"n\"".to_owned(),
+            hits: 0,
+            misses: 0,
+            reverse_hits,
+            reverse_misses,
+        },
+        Card {
+            prompt: "What is the key for editing the current card?".to_owned(),
+            response: "\"e\"".to_owned(),
+            hits: 0,
+            misses: 0,
+            reverse_hits,
+            reverse_misses,
         },
     ];
     let value = serde_json::to_string(&cards).context("serializing cards")?;
@@ -338,7 +368,12 @@ impl Component for Model {
             }
             Msg::Hit => {
                 if let Some(card) = self.current_card {
-                    self.cards[card].hits += 1;
+                    if self.reverse_mode {
+                        let rhits = self.cards[card].reverse_hits;
+                        self.cards[card].reverse_hits = Some(rhits.map_or(1, |v| v + 1));
+                    } else {
+                        self.cards[card].hits += 1;
+                    }
                     self.visible_face = Face::Prompt;
                     ctx.link().send_message(Msg::StoreCards);
                     ctx.link().send_message(Msg::Next);
@@ -349,7 +384,12 @@ impl Component for Model {
             }
             Msg::Miss => {
                 if let Some(card) = self.current_card {
-                    self.cards[card].misses += 1;
+                    if self.reverse_mode {
+                        let rmisses = self.cards[card].reverse_misses;
+                        self.cards[card].reverse_misses = Some(rmisses.map_or(1, |v| v + 1));
+                    } else {
+                        self.cards[card].misses += 1;
+                    }
                     self.visible_face = Face::Prompt;
                     ctx.link().send_message(Msg::StoreCards);
                     ctx.link().send_message(Msg::Next);
