@@ -25,7 +25,7 @@ enum Msg {
     CopyCards,
     CopyCardsSuccess,
     DeleteCard(usize),
-    Edit,
+    Edit(Option<usize>), // None means self's current card
     FadeCopyBorder,
     Flip,
     HelpMode,
@@ -104,6 +104,7 @@ struct Model {
     need_key_focus: bool,
     visible_face: Face,
     reverse_mode: bool,
+    deletion_target: Option<usize>,
 }
 
 fn store_data() -> Result<String> {
@@ -219,7 +220,6 @@ impl Model {
         if self.display_history.len() > n {
             self.display_history.pop_front();
         }
-        // console_dbg!(&self.display_history);
     }
 
     fn pop_last_displayed(&mut self) -> Option<usize> {
@@ -273,6 +273,7 @@ impl Component for Model {
             mode: Mode::Help,
             need_key_focus: true,
             reverse_mode: false,
+            deletion_target: None,
         }
     }
 
@@ -333,23 +334,30 @@ impl Component for Model {
                 true
             }
             Msg::DeleteCard(i) => {
-                if let Some(curr) = self.current_card {
-                    self.current_card = match curr.cmp(&i) {
-                        Ordering::Equal => None,
-                        Ordering::Greater => Some(curr - 1),
-                        Ordering::Less => Some(curr),
-                    };
+                if self.deletion_target.is_some() && self.deletion_target.unwrap() == i {
+                    if let Some(curr) = self.current_card {
+                        self.current_card = match curr.cmp(&i) {
+                            Ordering::Equal => None,
+                            Ordering::Greater => Some(curr - 1),
+                            Ordering::Less => Some(curr),
+                        };
+                    }
+                    self.display_history.clear(); // ... because the numbers changed
+                    self.cards.remove(i);
+                    ctx.link().send_message(Msg::StoreCards);
+                    self.deletion_target = None;
+                } else {
+                    self.deletion_target = Some(i);
                 }
-                self.display_history.clear(); // ... because the numbers changed
-                self.cards.remove(i);
-                ctx.link().send_message(Msg::StoreCards);
                 true
             }
-            Msg::Edit => {
+            Msg::Edit(i) => {
                 let mut redraw = false;
-                if let Some(card_index) = self.current_card {
-                    if let Some(card) = self.cards.get(card_index) {
+                let card_index = if i.is_none() { self.current_card } else { i };
+                if let Some(i) = card_index {
+                    if let Some(card) = self.cards.get(i) {
                         redraw = true;
+                        self.current_card = Some(i);
                         self.new_front_text = card.prompt.clone();
                         self.new_back_text = card.response.clone();
                         self.change_mode(Mode::Edit);
@@ -574,7 +582,7 @@ impl Component for Model {
                 } else if k == "p" {
                     Some(Msg::Prev)
                 } else if k == "e" {
-                    Some(Msg::Edit)
+                    Some(Msg::Edit(None))
                 } else {
                     None
                 }
@@ -601,9 +609,20 @@ impl Component for Model {
             Mode::AllCards => {
                 let mut cards_html = vec![];
                 for (i, card) in self.cards.iter().enumerate() {
-                    let button = html! {
+                    let delete_button_label =
+                        if self.deletion_target.is_some() && self.deletion_target.unwrap() == i {
+                            "Really? DELETE!"
+                        } else {
+                            "Delete"
+                        };
+                    let edit_button = html! {
+                        <button onclick={ctx.link().callback(move |_| Msg::Edit(Some(i)))}>
+                            {"Edit"}
+                        </button>
+                    };
+                    let delete_button = html! {
                         <button onclick={ctx.link().callback(move |_| Msg::DeleteCard(i))}>
-                            {"Delete"}
+                            {delete_button_label}
                         </button>
                     };
                     let row_color = if i % 2 == 0 { "#dde" } else { "#fff" };
@@ -611,7 +630,8 @@ impl Component for Model {
                         <tr style={format!("background-color:{}", row_color)}>
                             <td>{&card.prompt}</td>
                             <td>{&card.response}</td>
-                            <td>{button}</td>
+                            <td>{edit_button}</td>
+                            <td>{delete_button}</td>
                         </tr>
                     });
                 }
@@ -688,7 +708,7 @@ impl Component for Model {
                         <button onclick={ctx.link().callback(|_| Msg::Next)}>{ "Next" }</button>
                         <button onclick={ctx.link().callback(|_| Msg::Hit)}>{ "Hit" }</button>
                         <button onclick={ctx.link().callback(|_| Msg::Miss)}>{ "Miss" }</button>
-                        <button onclick={ctx.link().callback(|_| Msg::Edit)}>{ "Edit" }</button>
+                        <button onclick={ctx.link().callback(|_| Msg::Edit(None))}>{ "Edit" }</button>
                     </div>
                 }
             }
