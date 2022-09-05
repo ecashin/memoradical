@@ -220,7 +220,6 @@ impl Model {
         if self.display_history.len() > n {
             self.display_history.pop_front();
         }
-        // console_dbg!(&self.display_history);
     }
 
     fn pop_last_displayed(&mut self) -> Option<usize> {
