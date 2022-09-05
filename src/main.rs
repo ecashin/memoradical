@@ -633,10 +633,11 @@ impl Component for Model {
                 }
             }
             Mode::Help => {
+                let title = format!("Memoradical v{}", env!("CARGO_PKG_VERSION"));
                 html! {
                     <div>
                         {mode_buttons}
-                        <h2>{"Memoradical"}</h2>
+                        <h2>{title}</h2>
                         <p>{"Here is some help for "}<a href="https://github.com/ecashin/memoradical">{"Memoradical"}</a>{"."}</p>
                         <hr/>
                         <h2>{"Local Only App"}</h2>
