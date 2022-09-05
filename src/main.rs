@@ -104,6 +104,7 @@ struct Model {
     need_key_focus: bool,
     visible_face: Face,
     reverse_mode: bool,
+    deletion_target: Option<usize>,
 }
 
 fn store_data() -> Result<String> {
@@ -273,6 +274,7 @@ impl Component for Model {
             mode: Mode::Help,
             need_key_focus: true,
             reverse_mode: false,
+            deletion_target: None,
         }
     }
 
@@ -333,16 +335,21 @@ impl Component for Model {
                 true
             }
             Msg::DeleteCard(i) => {
-                if let Some(curr) = self.current_card {
-                    self.current_card = match curr.cmp(&i) {
-                        Ordering::Equal => None,
-                        Ordering::Greater => Some(curr - 1),
-                        Ordering::Less => Some(curr),
-                    };
+                if self.deletion_target.is_some() && self.deletion_target.unwrap() == i {
+                    if let Some(curr) = self.current_card {
+                        self.current_card = match curr.cmp(&i) {
+                            Ordering::Equal => None,
+                            Ordering::Greater => Some(curr - 1),
+                            Ordering::Less => Some(curr),
+                        };
+                    }
+                    self.display_history.clear(); // ... because the numbers changed
+                    self.cards.remove(i);
+                    ctx.link().send_message(Msg::StoreCards);
+                    self.deletion_target = None;
+                } else {
+                    self.deletion_target = Some(i);
                 }
-                self.display_history.clear(); // ... because the numbers changed
-                self.cards.remove(i);
-                ctx.link().send_message(Msg::StoreCards);
                 true
             }
             Msg::Edit => {
@@ -601,9 +608,15 @@ impl Component for Model {
             Mode::AllCards => {
                 let mut cards_html = vec![];
                 for (i, card) in self.cards.iter().enumerate() {
+                    let delete_button_label =
+                        if self.deletion_target.is_some() && self.deletion_target.unwrap() == i {
+                            "Really? DELETE!"
+                        } else {
+                            "Delete"
+                        };
                     let button = html! {
                         <button onclick={ctx.link().callback(move |_| Msg::DeleteCard(i))}>
-                            {"Delete"}
+                            {delete_button_label}
                         </button>
                     };
                     let row_color = if i % 2 == 0 { "#dde" } else { "#fff" };
