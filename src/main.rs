@@ -183,8 +183,18 @@ impl Model {
                 if history.contains(&i) {
                     0.0
                 } else {
-                    let shape1 = card.misses + 1;
-                    let shape2 = card.hits + 1;
+                    let misses = if self.reverse_mode {
+                        card.reverse_misses.unwrap_or_default()
+                    } else {
+                        card.misses
+                    };
+                    let hits = if self.reverse_mode {
+                        card.reverse_hits.unwrap_or_default()
+                    } else {
+                        card.hits
+                    };
+                    let shape1 = misses + 1;
+                    let shape2 = hits + 1;
                     Beta::new(shape1 as f64, shape2 as f64).unwrap().sample(rng)
                 }
             })
