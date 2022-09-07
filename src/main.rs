@@ -35,6 +35,7 @@ enum Msg {
     Noop,
     Prev,
     ReverseModeToggle,
+    StatsMode,
     StoreCards,
     StoreNewCards(String),
     StudyMode,
@@ -49,6 +50,7 @@ enum Mode {
     AllCards,
     Edit,
     Help,
+    Stats,
     Study,
 }
 
@@ -214,6 +216,10 @@ impl Model {
         )
     }
 
+    fn pop_last_displayed(&mut self) -> Option<usize> {
+        self.display_history.pop_back()
+    }
+
     fn record_display(&mut self, card: usize) {
         let n = (self.cards.len() as f64).log2().round() as usize;
         self.display_history.push_back(card);
@@ -222,8 +228,44 @@ impl Model {
         }
     }
 
-    fn pop_last_displayed(&mut self) -> Option<usize> {
-        self.display_history.pop_back()
+    fn stats_html(&self) -> Html {
+        let mut cards = self.cards.clone();
+        let r = |card: &Card| {
+            let total = card.hits + card.misses;
+            if total == 0 {
+                0.0
+            } else {
+                card.hits as f32 / total as f32
+            }
+        };
+        cards.sort_by(|a, b| r(b).partial_cmp(&r(a)).unwrap());
+        let rows = cards
+            .iter()
+            .map(|c| {
+                let percent = r(c) * 100.0;
+                html! {
+                    <tr>
+                        <td>{&c.prompt}</td>
+                        <td>{&c.response}</td>
+                        <td class="number">{c.hits}</td>
+                        <td class="number">{c.misses}</td>
+                        <td class="number">{format!("{:.2}", percent)}</td>
+                    </tr>
+                }
+            })
+            .collect::<Vec<_>>();
+        html! {
+            <table class="striped">
+                <tr>
+                    <th>{"prompt"}</th>
+                    <th>{"response"}</th>
+                    <th>{"hits"}</th>
+                    <th>{"misses"}</th>
+                    <th>{"percent hit"}</th>
+                </tr>
+                {rows}
+            </table>
+        }
     }
 }
 
@@ -438,6 +480,10 @@ impl Component for Model {
                 self.reverse_mode = !self.reverse_mode;
                 true
             }
+            Msg::StatsMode => {
+                self.change_mode(Mode::Stats);
+                true
+            }
             Msg::StoreCards => {
                 let json = serde_json::to_string(&self.cards).unwrap();
                 LocalStorage::set(STORAGE_KEY_CARDS, &json)
@@ -494,6 +540,7 @@ impl Component for Model {
                 <button disabled={self.mode == Mode::Study} onclick={ctx.link().callback(|_| Msg::StudyMode)}>{"Study"}</button>
                 <button disabled={self.mode == Mode::Add || self.mode == Mode::Edit} onclick={ctx.link().callback(|_| Msg::AddMode)}>{"Add Card"}</button>
                 <button disabled={self.mode == Mode::AllCards} onclick={ctx.link().callback(|_| Msg::AllCardsMode)}>{"All Cards"}</button>
+                <button disabled={self.mode == Mode::Stats} onclick={ctx.link().callback(|_| Msg::StatsMode)}>{"Stats"}</button>
             </div>
         };
         let add_card_html = html! {
@@ -625,9 +672,8 @@ impl Component for Model {
                             {delete_button_label}
                         </button>
                     };
-                    let row_color = if i % 2 == 0 { "#dde" } else { "#fff" };
                     cards_html.push(html! {
-                        <tr style={format!("background-color:{}", row_color)}>
+                        <tr>
                             <td>{&card.prompt}</td>
                             <td>{&card.response}</td>
                             <td>{edit_button}</td>
@@ -639,13 +685,10 @@ impl Component for Model {
                     <div>
                         {mode_buttons}
                         {upload_html}
-                        <table style="padding: 1ex; tr:nth-of-type(odd) {
-                            background-color:#ccc;
-                            ">
+                        <table class="striped">
                             <tr>
                                 <th>{"Prompt"}</th>
                                 <th>{"Response"}</th>
-                                <th></th>
                             </tr>
                             {cards_html}
                         </table>
@@ -692,6 +735,14 @@ impl Component for Model {
                         <p>{"After going through a few cards, use \"p\" to go back through recent history."}</p>
                         <p>{"If you still don't remember, you can record another miss and use \"p\" again twice to resume time travel."}</p>
                         <p>{"The history is limited to a length on the order of the logarithm of the number of cards."}</p>
+                    </div>
+                }
+            }
+            Mode::Stats => {
+                html! {
+                    <div>
+                        {mode_buttons}
+                        {self.stats_html()}
                     </div>
                 }
             }
