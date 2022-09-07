@@ -255,7 +255,7 @@ impl Model {
             })
             .collect::<Vec<_>>();
         html! {
-            <table>
+            <table class="striped">
                 <tr>
                     <th>{"prompt"}</th>
                     <th>{"response"}</th>
@@ -672,9 +672,8 @@ impl Component for Model {
                             {delete_button_label}
                         </button>
                     };
-                    let row_color = if i % 2 == 0 { "#dde" } else { "#fff" };
                     cards_html.push(html! {
-                        <tr style={format!("background-color:{}", row_color)}>
+                        <tr>
                             <td>{&card.prompt}</td>
                             <td>{&card.response}</td>
                             <td>{edit_button}</td>
@@ -686,13 +685,10 @@ impl Component for Model {
                     <div>
                         {mode_buttons}
                         {upload_html}
-                        <table style="padding: 1ex; tr:nth-of-type(odd) {
-                            background-color:#ccc;
-                            ">
+                        <table class="striped">
                             <tr>
                                 <th>{"Prompt"}</th>
                                 <th>{"Response"}</th>
-                                <th></th>
                             </tr>
                             {cards_html}
                         </table>
