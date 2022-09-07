@@ -760,10 +760,10 @@ impl Component for Model {
                         <h2>{"Local Only App"}</h2>
                         <p>{"This web app runs on your browser and stores information on your local system."}</p>
                         <p>
-                            <span>{"Your information never leaves your system."}</span>
-                            <span>{"It only requests HTML and "}</span>
+                            {"Your information never leaves your system. "}
+                            {"It only requests HTML and "}
                             <a href="https://webassembly.org/">{"Web Assembly"}</a>
-                            <span>{" from the server."}</span>
+                            {" from the server."}
                         </p>
                         <hr/>
                         <h2>{"Usage"}</h2>
@@ -772,23 +772,39 @@ impl Component for Model {
                         <p>{"If you know the meaning of the word, click \"Miss\" or hit the \"m\" key."}</p>
                         <p>{"To go to the next card without hitting or missing, click \"Next\" or hit the \"n\" key."}</p>
                         <p>
-                            <span>{"To go to the previous card without hitting or missing, click \"Prev\" or hit the \"p\" key."}</span>
-                            <span>{" After you go backward, going forward results in new random draws for cards."}</span>
+                            {"To go to the previous card without hitting or missing, click \"Prev\" or hit the \"p\" key."}
+                            {" After you go backward, going forward results in new random draws for cards."}
                         </p>
                         <p>{"To edit a card, click the \"Edit\" button or hit \"e\"."}</p>
-                        <p>{"(You might need to click a button before using the keyboard shortcuts.)"}</p>
                         <p>{"Check the \"reverse mode\" checkbox to use the other side of the cards as prompts."}</p>
-                        <p>{"Adding cards is supported, but copy, edit, and upload JSON for other card modifications."}</p>
                         <hr/>
                         <h2>{"Data"}</h2>
-                        <p>{"Use the button at the top to upload a JSON file with new cards."}</p>
-                        <p>{"Follow the format of the JSON displayed at the bottom of the page."}</p>
+                        <p>
+                            {"In \"Add Card\" mode, you can add one card at a time. "}
+                        </p>
+                        <p>
+                            {"To add many at once, visit \"All Cards\" mode and work with your "}
+                            <a href="https://www.json.org">{"JSON data"}</a>
+                            {" outside Memoradical. "}
+                            {"In \"All Cards\" mode, you can copy the data, upload new or edited data, and see all the cards."}
+                        </p>
+                        <p>
+                            {"Use the \"Choose File\" button "}
+                            {"at the top to upload a JSON file with new cards."}
+                        </p>
+                        <p>
+                            {"Use the \"Copy to Clipboard\" button "}
+                            {"and paste the JSON-format data into a text file for backup or processing."}
+                        </p>
+                        <h2>{"Card Selection During Study"}</h2>
                         <p>{"Misses make cards appear more frequently, but hits make them appear less frequently."}</p>
-                        <p>{"If no data is available, two dummy cards are displayed."}</p>
+                        <p>{"If no data is available, dummy cards are displayed."}</p>
                         <h2>{"Tips"}</h2>
                         <p>{"After going through a few cards, use \"p\" to go back through recent history."}</p>
                         <p>{"If you still don't remember, you can record another miss and use \"p\" again twice to resume time travel."}</p>
+                        <p>{"Going back through history removes items from the history."}</p>
                         <p>{"The history is limited to a length on the order of the logarithm of the number of cards."}</p>
+                        <p>{"Visit the \"Stats\" mode to see your overall progress."}</p>
                     </div>
                 }
             }
