@@ -252,7 +252,17 @@ impl Model {
             let (h, m) = hits_misses(card);
             hit_ratio(h, m)
         };
-        cards.sort_by(|a, b| r(b).partial_cmp(&r(a)).unwrap());
+        let goodness = |card: &Card| {
+            let (h, m) = hits_misses(card);
+            let total = h + m;
+            if total == 0 {
+                0.0
+            } else {
+                let diff = h as isize - m as isize;
+                diff as f32 / total as f32
+            }
+        };
+        cards.sort_by(|a, b| goodness(b).partial_cmp(&goodness(a)).unwrap());
         let rows = cards
             .iter()
             .map(|c| {
@@ -265,6 +275,7 @@ impl Model {
                         <td class="number">{h}</td>
                         <td class="number">{m}</td>
                         <td class="number">{format!("{:.2}", percent)}</td>
+                        <td class="number">{format!("{:.2}", goodness(c))}</td>
                     </tr>
                 }
             })
@@ -278,6 +289,7 @@ impl Model {
                     <th>{format!("{}hits", prefix)}</th>
                     <th>{format!("{}misses", prefix)}</th>
                     <th>{format!("{}percent hit", prefix)}</th>
+                    <th>{"goodness"}</th>
                 </tr>
                 {rows}
             </table>
