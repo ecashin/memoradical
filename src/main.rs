@@ -109,6 +109,14 @@ struct Model {
     deletion_target: Option<usize>,
 }
 
+fn mean(x: &[f32]) -> f32 {
+    if x.is_empty() {
+        0.0
+    } else {
+        x.iter().sum::<f32>() / x.len() as f32
+    }
+}
+
 fn store_data() -> Result<String> {
     let reverse_hits = None;
     let reverse_misses = None;
@@ -252,11 +260,24 @@ impl Model {
             let (h, m) = hits_misses(card);
             hit_ratio(h, m)
         };
-        cards.sort_by(|a, b| r(b).partial_cmp(&r(a)).unwrap());
+        let goodness = |card: &Card| {
+            let (h, m) = hits_misses(card);
+            let total = h + m;
+            if total == 0 {
+                0.0
+            } else {
+                let diff = h as isize - m as isize;
+                diff as f32 / total as f32
+            }
+        };
+        cards.sort_by(|a, b| goodness(b).partial_cmp(&goodness(a)).unwrap());
+        let percents = cards.iter().map(|c| r(c) * 100.0).collect::<Vec<_>>();
+        let goodnesses = cards.iter().map(|c| goodness(c)).collect::<Vec<_>>();
         let rows = cards
             .iter()
-            .map(|c| {
-                let percent = r(c) * 100.0;
+            .zip(percents.iter())
+            .zip(goodnesses.iter())
+            .map(|((c, percent), good)| {
                 let (h, m) = hits_misses(c);
                 html! {
                     <tr>
@@ -265,22 +286,39 @@ impl Model {
                         <td class="number">{h}</td>
                         <td class="number">{m}</td>
                         <td class="number">{format!("{:.2}", percent)}</td>
+                        <td class="number">{format!("{:.2}", good)}</td>
                     </tr>
                 }
             })
             .collect::<Vec<_>>();
         let prefix = if self.reverse_mode { "reverse " } else { "" };
+        let percent_good = {
+            let ratio = if goodnesses.is_empty() {
+                0.0
+            } else {
+                let n_good = goodnesses.iter().filter(|s| *s > &0.95).count();
+                n_good as f32 / goodnesses.len() as f32
+            };
+            100.0 * ratio
+        };
         html! {
-            <table class="striped">
-                <tr>
-                    <th>{"prompt"}</th>
-                    <th>{"response"}</th>
-                    <th>{format!("{}hits", prefix)}</th>
-                    <th>{format!("{}misses", prefix)}</th>
-                    <th>{format!("{}percent hit", prefix)}</th>
-                </tr>
-                {rows}
-            </table>
+            <>
+                <ul>
+                    <li>{"Overall score: "}{format!("{:.2}", mean(&goodnesses))}</li>
+                    <li>{"Cards known well: "}{format!("{:.2}%", percent_good)}</li>
+                </ul>
+                <table class="striped">
+                    <tr>
+                        <th>{"prompt"}</th>
+                        <th>{"response"}</th>
+                        <th>{format!("{}hits", prefix)}</th>
+                        <th>{format!("{}misses", prefix)}</th>
+                        <th>{format!("{}percent hit", prefix)}</th>
+                        <th>{"goodness"}</th>
+                    </tr>
+                    {rows}
+                </table>
+            </>
         }
     }
 }
