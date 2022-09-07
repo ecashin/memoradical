@@ -230,54 +230,54 @@ impl Model {
 
     fn stats_html(&self) -> Html {
         let mut cards = self.cards.clone();
-        let r = |card: &Card| {
-            let total = card.hits + card.misses;
+        let hits_misses = |card: &Card| {
+            if self.reverse_mode {
+                (
+                    card.reverse_hits.unwrap_or_default(),
+                    card.reverse_misses.unwrap_or_default(),
+                )
+            } else {
+                (card.hits, card.misses)
+            }
+        };
+        let hit_ratio = |h, m| {
+            let total = h + m;
             if total == 0 {
                 0.0
             } else {
-                card.hits as f32 / total as f32
+                h as f32 / total as f32
             }
+        };
+        let r = |card: &Card| {
+            let (h, m) = hits_misses(card);
+            hit_ratio(h, m)
         };
         cards.sort_by(|a, b| r(b).partial_cmp(&r(a)).unwrap());
         let rows = cards
             .iter()
             .map(|c| {
                 let percent = r(c) * 100.0;
-                let rhits = c.reverse_hits.unwrap_or_default();
-                let rmisses = c.reverse_misses.unwrap_or_default();
-                let rpercent = {
-                    let total = rhits + rmisses;
-                    if total == 0 {
-                        0.0
-                    } else {
-                        (rhits as f32 / total as f32) * 100.0
-                    }
-                };
+                let (h, m) = hits_misses(c);
                 html! {
                     <tr>
                         <td>{&c.prompt}</td>
                         <td>{&c.response}</td>
-                        <td class="number">{c.hits}</td>
-                        <td class="number">{c.misses}</td>
+                        <td class="number">{h}</td>
+                        <td class="number">{m}</td>
                         <td class="number">{format!("{:.2}", percent)}</td>
-                        <td class="number">{rhits}</td>
-                        <td class="number">{rmisses}</td>
-                        <td class="number">{format!("{:.2}", rpercent)}</td>
                     </tr>
                 }
             })
             .collect::<Vec<_>>();
+        let prefix = if self.reverse_mode { "reverse " } else { "" };
         html! {
             <table class="striped">
                 <tr>
                     <th>{"prompt"}</th>
                     <th>{"response"}</th>
-                    <th>{"hits"}</th>
-                    <th>{"misses"}</th>
-                    <th>{"percent hit"}</th>
-                    <th>{"reverse hits"}</th>
-                    <th>{"reverse misses"}</th>
-                    <th>{"reverse percent hit"}</th>
+                    <th>{format!("{}hits", prefix)}</th>
+                    <th>{format!("{}misses", prefix)}</th>
+                    <th>{format!("{}percent hit", prefix)}</th>
                 </tr>
                 {rows}
             </table>
@@ -758,6 +758,7 @@ impl Component for Model {
                 html! {
                     <div>
                         {mode_buttons}
+                        {reverse_mode_html}
                         {self.stats_html()}
                     </div>
                 }
