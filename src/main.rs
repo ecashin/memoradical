@@ -247,9 +247,9 @@ impl Model {
                     <tr>
                         <td>{&c.prompt}</td>
                         <td>{&c.response}</td>
-                        <td>{c.hits}</td>
-                        <td>{c.misses}</td>
-                        <td>{percent}</td>
+                        <td class="number">{c.hits}</td>
+                        <td class="number">{c.misses}</td>
+                        <td class="number">{format!("{:.2}", percent)}</td>
                     </tr>
                 }
             })
