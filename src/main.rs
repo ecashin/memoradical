@@ -243,6 +243,16 @@ impl Model {
             .iter()
             .map(|c| {
                 let percent = r(c) * 100.0;
+                let rhits = c.reverse_hits.unwrap_or_default();
+                let rmisses = c.reverse_misses.unwrap_or_default();
+                let rpercent = {
+                    let total = rhits + rmisses;
+                    if total == 0 {
+                        0.0
+                    } else {
+                        (rhits as f32 / total as f32) * 100.0
+                    }
+                };
                 html! {
                     <tr>
                         <td>{&c.prompt}</td>
@@ -250,6 +260,9 @@ impl Model {
                         <td class="number">{c.hits}</td>
                         <td class="number">{c.misses}</td>
                         <td class="number">{format!("{:.2}", percent)}</td>
+                        <td class="number">{rhits}</td>
+                        <td class="number">{rmisses}</td>
+                        <td class="number">{format!("{:.2}", rpercent)}</td>
                     </tr>
                 }
             })
@@ -262,6 +275,9 @@ impl Model {
                     <th>{"hits"}</th>
                     <th>{"misses"}</th>
                     <th>{"percent hit"}</th>
+                    <th>{"reverse hits"}</th>
+                    <th>{"reverse misses"}</th>
+                    <th>{"reverse percent hit"}</th>
                 </tr>
                 {rows}
             </table>
