@@ -110,7 +110,7 @@ struct Model {
 }
 
 fn mean(x: &[f32]) -> f32 {
-    if x.len() == 0 {
+    if x.is_empty() {
         0.0
     } else {
         x.iter().sum::<f32>() / x.len() as f32
@@ -293,7 +293,7 @@ impl Model {
             .collect::<Vec<_>>();
         let prefix = if self.reverse_mode { "reverse " } else { "" };
         let percent_good = {
-            let ratio = if goodnesses.len() == 0 {
+            let ratio = if goodnesses.is_empty() {
                 0.0
             } else {
                 let n_good = goodnesses.iter().filter(|s| *s > &0.95).count();
