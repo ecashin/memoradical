@@ -16,8 +16,8 @@ use web_sys::{Event, HtmlElement, HtmlInputElement};
 use yew::prelude::*;
 
 const COPY_BORDER_FADE_MS: u32 = 50;
-const ROW_DISPLAY_INCREMENT: usize = 50;
 const ROW_DISPLAY_BREATHER_MS: u32 = 50;
+const ROW_DISPLAY_INITIAL: usize = 50;
 const STORAGE_KEY_CARDS: &str = "net.noserose.memoradical:cards";
 
 enum Msg {
@@ -189,7 +189,7 @@ impl Model {
         if new_mode == Mode::Study && self.mode != Mode::Study {
             self.need_key_focus = true;
         }
-        self.n_rows_displayed = ROW_DISPLAY_INCREMENT;
+        self.n_rows_displayed = ROW_DISPLAY_INITIAL;
         self.mode = new_mode;
     }
 
@@ -489,7 +489,7 @@ impl Component for Model {
                             Ordering::Less => Some(curr),
                         };
                     }
-                    self.display_history.clear(); // ... because the numbers changed
+                    self.display_history.clear(); // because the numbers changed
                     self.cards.remove(i);
                     ctx.link().send_message(Msg::StoreCards);
                     self.deletion_target = None;
@@ -500,7 +500,7 @@ impl Component for Model {
             }
             Msg::DisplayMoreRows => {
                 if self.n_rows_displayed < self.cards.len() {
-                    self.n_rows_displayed += ROW_DISPLAY_INCREMENT;
+                    self.n_rows_displayed *= 2;
                     let handle = {
                         let link = ctx.link().clone();
                         Timeout::new(ROW_DISPLAY_BREATHER_MS, move || {
