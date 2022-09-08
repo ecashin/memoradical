@@ -8,7 +8,7 @@ use gloo_file::{
     File,
 };
 use gloo_storage::{LocalStorage, Storage};
-use gloo_timers::callback::Interval;
+use gloo_timers::callback::{Interval, Timeout};
 use rand::distributions::WeightedIndex;
 use rand_distr::{Beta, Distribution};
 use serde::{Deserialize, Serialize};
@@ -16,6 +16,8 @@ use web_sys::{Event, HtmlElement, HtmlInputElement};
 use yew::prelude::*;
 
 const COPY_BORDER_FADE_MS: u32 = 50;
+const ROW_DISPLAY_INCREMENT: usize = 50;
+const ROW_DISPLAY_BREATHER_MS: u32 = 50;
 const STORAGE_KEY_CARDS: &str = "net.noserose.memoradical:cards";
 
 enum Msg {
@@ -25,6 +27,7 @@ enum Msg {
     CopyCards,
     CopyCardsSuccess,
     DeleteCard(usize),
+    DisplayMoreRows,
     Edit(Option<usize>), // None means self's current card
     FadeCopyBorder,
     Flip,
@@ -34,6 +37,7 @@ enum Msg {
     Next,
     Noop,
     Prev,
+    Render,
     ReverseModeToggle,
     SetHelp(String),
     StatsMode,
@@ -101,10 +105,12 @@ struct Model {
     display_history: LinkedList<usize>,
     help_html: Option<String>,
     help_node: NodeRef,
+    n_rows_displayed: usize,
     new_front_text: String,
     new_back_text: String,
-    node_ref: NodeRef,
+    focus_node: NodeRef,
     readers: Vec<FileReader>,
+    rerender: Option<Timeout>,
     mode: Mode,
     need_key_focus: bool,
     visible_face: Face,
@@ -183,6 +189,7 @@ impl Model {
         if new_mode == Mode::Study && self.mode != Mode::Study {
             self.need_key_focus = true;
         }
+        self.n_rows_displayed = ROW_DISPLAY_INCREMENT;
         self.mode = new_mode;
     }
 
@@ -278,6 +285,7 @@ impl Model {
         let goodnesses = cards.iter().map(|c| goodness(c)).collect::<Vec<_>>();
         let rows = cards
             .iter()
+            .take(self.n_rows_displayed)
             .zip(percents.iter())
             .zip(goodnesses.iter())
             .map(|((c, percent), good)| {
@@ -373,13 +381,15 @@ impl Component for Model {
             display_history: LinkedList::new(),
             help_html: None,
             help_node: NodeRef::default(),
+            n_rows_displayed: 0,
             new_back_text: "".to_owned(),
             new_front_text: "".to_owned(),
             visible_face: Face::Prompt,
             readers: vec![],
-            node_ref: NodeRef::default(),
+            focus_node: NodeRef::default(),
             mode: Mode::Study,
             need_key_focus: true,
+            rerender: None,
             reverse_mode: false,
             deletion_target: None,
         };
@@ -389,13 +399,15 @@ impl Component for Model {
 
     fn rendered(&mut self, _ctx: &yew::Context<Self>, _first_render: bool) {
         if self.need_key_focus {
-            if let Some(elt) = self.node_ref.cast::<HtmlElement>() {
+            if let Some(elt) = self.focus_node.cast::<HtmlElement>() {
                 elt.focus().expect("focus on div");
             }
         }
-        if let Some(help) = &self.help_html {
-            let elt = self.help_node.cast::<web_sys::Element>().unwrap();
-            elt.set_inner_html(help);
+        if self.mode == Mode::Help {
+            if let Some(help) = &self.help_html {
+                let elt = self.help_node.cast::<web_sys::Element>().unwrap();
+                elt.set_inner_html(help);
+            }
         }
     }
 
@@ -464,6 +476,19 @@ impl Component for Model {
                     self.deletion_target = Some(i);
                 }
                 true
+            }
+            Msg::DisplayMoreRows => {
+                if self.n_rows_displayed < self.cards.len() {
+                    self.n_rows_displayed += ROW_DISPLAY_INCREMENT;
+                    let handle = {
+                        let link = ctx.link().clone();
+                        Timeout::new(ROW_DISPLAY_BREATHER_MS, move || {
+                            link.send_message(Msg::Render)
+                        })
+                    };
+                    self.rerender = Some(handle);
+                }
+                false
             }
             Msg::Edit(i) => {
                 let mut redraw = false;
@@ -559,6 +584,7 @@ impl Component for Model {
                     false
                 }
             }
+            Msg::Render => true,
             Msg::ReverseModeToggle => {
                 self.reverse_mode = !self.reverse_mode;
                 true
@@ -741,8 +767,11 @@ impl Component for Model {
         };
         match self.mode {
             Mode::AllCards => {
+                if self.n_rows_displayed < self.cards.len() {
+                    ctx.link().send_message(Msg::DisplayMoreRows);
+                }
                 let mut cards_html = vec![];
-                for (i, card) in self.cards.iter().enumerate() {
+                for (i, card) in self.cards.iter().take(self.n_rows_displayed).enumerate() {
                     let delete_button_label =
                         if self.deletion_target.is_some() && self.deletion_target.unwrap() == i {
                             "Really? DELETE!"
@@ -796,6 +825,9 @@ impl Component for Model {
                 }
             }
             Mode::Stats => {
+                if self.n_rows_displayed < self.cards.len() {
+                    ctx.link().send_message(Msg::DisplayMoreRows);
+                }
                 html! {
                     <div>
                         {mode_buttons}
@@ -811,7 +843,7 @@ impl Component for Model {
                         <br/>
                         {reverse_mode_html}
                         {card_html}
-                        <button ref={self.node_ref.clone()}
+                        <button ref={self.focus_node.clone()}
                             onclick={ctx.link().callback(|_| Msg::Flip)}>{ "Flip" }</button>
                         <button onclick={ctx.link().callback(|_| Msg::Prev)}>{ "Prev" }</button>
                         <button onclick={ctx.link().callback(|_| Msg::Next)}>{ "Next" }</button>
