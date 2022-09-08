@@ -338,7 +338,7 @@ impl Model {
                         <th>{format!("{}hits", prefix)}</th>
                         <th>{format!("{}misses", prefix)}</th>
                         <th>{format!("{}percent hit", prefix)}</th>
-                        <th>{"goodness"}</th>
+                        <th>{format!("{}goodness", prefix)}</th>
                     </tr>
                     {rows}
                 </table>
