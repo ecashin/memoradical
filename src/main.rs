@@ -326,7 +326,10 @@ impl Model {
                 <ul>
                     <li>{"Overall score: "}{format!("{:.2}", mean(&goodnesses))}</li>
                     <li>{"Cards known well: "}{format!("{:.2}%", percent_good)}</li>
-                    <li>{"Cards visited: "}{format!("{:.2}%", percent_visited)}</li>
+                    <li>
+                        {"Cards visited: "}
+                        {format!("{:.2}% of {}", percent_visited, cards.len())}
+                    </li>
                 </ul>
                 <table class="striped">
                     <tr>
