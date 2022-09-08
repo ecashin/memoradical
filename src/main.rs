@@ -290,6 +290,13 @@ impl Model {
                 })
                 .count() as f32)
             / cards.len() as f32;
+        let n_responses = cards
+            .iter()
+            .map(|c| {
+                let (h, m) = hits_misses(c);
+                h + m
+            })
+            .sum::<usize>();
         let percents = cards.iter().map(|c| r(c) * 100.0).collect::<Vec<_>>();
         let goodnesses = cards.iter().map(|c| goodness(c)).collect::<Vec<_>>();
         let rows = cards
@@ -330,6 +337,7 @@ impl Model {
                         {"Cards visited: "}
                         {format!("{:.2}% of {}", percent_visited, cards.len())}
                     </li>
+                    <li>{"Number of responses: "}{format!("{n_responses}")}</li>
                 </ul>
                 <table class="striped">
                     <tr>
