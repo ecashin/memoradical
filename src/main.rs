@@ -108,7 +108,7 @@ struct Model {
     n_rows_displayed: usize,
     new_front_text: String,
     new_back_text: String,
-    node_ref: NodeRef,
+    focus_node: NodeRef,
     readers: Vec<FileReader>,
     rerender: Option<Timeout>,
     mode: Mode,
@@ -386,7 +386,7 @@ impl Component for Model {
             new_front_text: "".to_owned(),
             visible_face: Face::Prompt,
             readers: vec![],
-            node_ref: NodeRef::default(),
+            focus_node: NodeRef::default(),
             mode: Mode::Study,
             need_key_focus: true,
             rerender: None,
@@ -399,7 +399,7 @@ impl Component for Model {
 
     fn rendered(&mut self, _ctx: &yew::Context<Self>, _first_render: bool) {
         if self.need_key_focus {
-            if let Some(elt) = self.node_ref.cast::<HtmlElement>() {
+            if let Some(elt) = self.focus_node.cast::<HtmlElement>() {
                 elt.focus().expect("focus on div");
             }
         }
@@ -843,7 +843,7 @@ impl Component for Model {
                         <br/>
                         {reverse_mode_html}
                         {card_html}
-                        <button ref={self.node_ref.clone()}
+                        <button ref={self.focus_node.clone()}
                             onclick={ctx.link().callback(|_| Msg::Flip)}>{ "Flip" }</button>
                         <button onclick={ctx.link().callback(|_| Msg::Prev)}>{ "Prev" }</button>
                         <button onclick={ctx.link().callback(|_| Msg::Next)}>{ "Next" }</button>
