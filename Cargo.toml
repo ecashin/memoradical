@@ -10,6 +10,7 @@ anyhow = "1.0.57"
 getrandom = { version = "0.2.6", features = ["js"] }
 gloo-console = "0.2.1"
 gloo-file = "0.2.1"
+gloo-net = "0.2.4"
 gloo-storage = "0.2.1"
 gloo-timers = "0.2.4"
 js-sys = "0.3.57"

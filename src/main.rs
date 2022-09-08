@@ -35,6 +35,7 @@ enum Msg {
     Noop,
     Prev,
     ReverseModeToggle,
+    SetHelp(String),
     StatsMode,
     StoreCards,
     StoreNewCards(String),
@@ -98,6 +99,8 @@ struct Model {
     copy_border_fader: Option<Interval>,
     current_card: Option<usize>,
     display_history: LinkedList<usize>,
+    help_html: Option<String>,
+    help_node: NodeRef,
     new_front_text: String,
     new_back_text: String,
     node_ref: NodeRef,
@@ -322,6 +325,14 @@ impl Model {
         }
     }
 }
+async fn fetch_html(resource: &str) -> Result<String> {
+    let html = gloo_net::http::Request::get(resource)
+        .send()
+        .await?
+        .text()
+        .await?;
+    Ok(html)
+}
 
 async fn copy_cards_to_clipboard(cards: &[Card]) -> Result<()> {
     let value = serde_json::to_string_pretty(cards).context("serializing cards")?;
@@ -354,23 +365,26 @@ impl Component for Model {
             },
         };
         let cards: Vec<Card> = serde_json::from_str(&json.unwrap()).unwrap();
-        let current_card = None;
-        Self {
+        let mut instance = Self {
             cards,
             copy_border_opacity: 0.0,
             copy_border_fader: None,
-            current_card,
+            current_card: None,
             display_history: LinkedList::new(),
+            help_html: None,
+            help_node: NodeRef::default(),
             new_back_text: "".to_owned(),
             new_front_text: "".to_owned(),
             visible_face: Face::Prompt,
             readers: vec![],
             node_ref: NodeRef::default(),
-            mode: Mode::Help,
+            mode: Mode::Study,
             need_key_focus: true,
             reverse_mode: false,
             deletion_target: None,
-        }
+        };
+        instance.current_card = Some(instance.choose_card());
+        instance
     }
 
     fn rendered(&mut self, _ctx: &yew::Context<Self>, _first_render: bool) {
@@ -378,6 +392,10 @@ impl Component for Model {
             if let Some(elt) = self.node_ref.cast::<HtmlElement>() {
                 elt.focus().expect("focus on div");
             }
+        }
+        if let Some(help) = &self.help_html {
+            let elt = self.help_node.cast::<web_sys::Element>().unwrap();
+            elt.set_inner_html(help);
         }
     }
 
@@ -478,6 +496,17 @@ impl Component for Model {
             }
             Msg::HelpMode => {
                 self.change_mode(Mode::Help);
+                if self.help_html.is_none() {
+                    ctx.link().send_future(async move {
+                        match fetch_html("static/help.html").await {
+                            Err(e) => {
+                                console_dbg!(e);
+                                Msg::Noop
+                            }
+                            Ok(help) => Msg::SetHelp(help),
+                        }
+                    });
+                }
                 true
             }
             Msg::Hit => {
@@ -532,6 +561,10 @@ impl Component for Model {
             }
             Msg::ReverseModeToggle => {
                 self.reverse_mode = !self.reverse_mode;
+                true
+            }
+            Msg::SetHelp(help) => {
+                self.help_html = Some(help);
                 true
             }
             Msg::StatsMode => {
@@ -757,54 +790,8 @@ impl Component for Model {
                         <h2>{title}</h2>
                         <p>{"Here is some help for "}<a href="https://github.com/ecashin/memoradical">{"Memoradical"}</a>{"."}</p>
                         <hr/>
-                        <h2>{"Local Only App"}</h2>
-                        <p>{"This web app runs on your browser and stores information on your local system."}</p>
-                        <p>
-                            {"Your information never leaves your system. "}
-                            {"It only requests HTML and "}
-                            <a href="https://webassembly.org/">{"Web Assembly"}</a>
-                            {" from the server."}
-                        </p>
-                        <hr/>
-                        <h2>{"Usage"}</h2>
-                        <p>{"To flip the card, click \"Flip\" or hit the \"f\" key."}</p>
-                        <p>{"If you know the meaning of the word, click \"Hit\" or hit the \"h\" key."}</p>
-                        <p>{"If you know the meaning of the word, click \"Miss\" or hit the \"m\" key."}</p>
-                        <p>{"To go to the next card without hitting or missing, click \"Next\" or hit the \"n\" key."}</p>
-                        <p>
-                            {"To go to the previous card without hitting or missing, click \"Prev\" or hit the \"p\" key."}
-                            {" After you go backward, going forward results in new random draws for cards."}
-                        </p>
-                        <p>{"To edit a card, click the \"Edit\" button or hit \"e\"."}</p>
-                        <p>{"Check the \"reverse mode\" checkbox to use the other side of the cards as prompts."}</p>
-                        <hr/>
-                        <h2>{"Data"}</h2>
-                        <p>
-                            {"In \"Add Card\" mode, you can add one card at a time. "}
-                        </p>
-                        <p>
-                            {"To add many at once, visit \"All Cards\" mode and work with your "}
-                            <a href="https://www.json.org">{"JSON data"}</a>
-                            {" outside Memoradical. "}
-                            {"In \"All Cards\" mode, you can copy the data, upload new or edited data, and see all the cards."}
-                        </p>
-                        <p>
-                            {"Use the \"Choose File\" button "}
-                            {"at the top to upload a JSON file with new cards."}
-                        </p>
-                        <p>
-                            {"Use the \"Copy to Clipboard\" button "}
-                            {"and paste the JSON-format data into a text file for backup or processing."}
-                        </p>
-                        <h2>{"Card Selection During Study"}</h2>
-                        <p>{"Misses make cards appear more frequently, but hits make them appear less frequently."}</p>
-                        <p>{"If no data is available, dummy cards are displayed."}</p>
-                        <h2>{"Tips"}</h2>
-                        <p>{"After going through a few cards, use \"p\" to go back through recent history."}</p>
-                        <p>{"If you still don't remember, you can record another miss and use \"p\" again twice to resume time travel."}</p>
-                        <p>{"Going back through history removes items from the history."}</p>
-                        <p>{"The history is limited to a length on the order of the logarithm of the number of cards."}</p>
-                        <p>{"Visit the \"Stats\" mode to see your overall progress."}</p>
+                        <div ref={self.help_node.clone()}>
+                        </div>
                     </div>
                 }
             }
