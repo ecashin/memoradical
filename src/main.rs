@@ -281,6 +281,15 @@ impl Model {
             }
         };
         cards.sort_by(|a, b| goodness(b).partial_cmp(&goodness(a)).unwrap());
+        let percent_visited = 100.0
+            * (cards
+                .iter()
+                .filter(|c| {
+                    let (h, m) = hits_misses(c);
+                    h + m > 0
+                })
+                .count() as f32)
+            / cards.len() as f32;
         let percents = cards.iter().map(|c| r(c) * 100.0).collect::<Vec<_>>();
         let goodnesses = cards.iter().map(|c| goodness(c)).collect::<Vec<_>>();
         let rows = cards
@@ -317,6 +326,7 @@ impl Model {
                 <ul>
                     <li>{"Overall score: "}{format!("{:.2}", mean(&goodnesses))}</li>
                     <li>{"Cards known well: "}{format!("{:.2}%", percent_good)}</li>
+                    <li>{"Cards visited: "}{format!("{:.2}%", percent_visited)}</li>
                 </ul>
                 <table class="striped">
                     <tr>
