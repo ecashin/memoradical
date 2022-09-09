@@ -328,7 +328,7 @@ impl Model {
                     .zip(cards.iter())
                     .filter(|(g, c)| {
                         let (h, m) = hits_misses(c);
-                        h + m > 2  // just one response isn't enough to "know it well" 
+                        h + m > 1  // just one response isn't enough to "know it well"
                         && *g > &0.95
                     })
                     .count();
@@ -339,8 +339,26 @@ impl Model {
         html! {
             <>
                 <ul>
-                    <li>{"Overall score: "}{format!("{:.2}", mean(&goodnesses))}</li>
-                    <li>{"Cards known well: "}{format!("{:.2}%", percent_good)}</li>
+                    <li>
+                        <span class="tooltip">
+                            <span class="tooltiptext">
+                                {"Average per card"}
+                                <br />
+                                {"(hits - misses) / (hits + misses)"}
+                            </span>
+                            {"Overall score: "}{format!("{:.2}", mean(&goodnesses))}
+                        </span>
+                    </li>
+                    <li>
+                        <span class="tooltip">
+                            <span class="tooltiptext">
+                                {"Visited more than once and with"}
+                                <br />
+                                {"(hits - misses) / (hits + misses) > 0.95"}
+                            </span>
+                            {"Cards known well: "}{format!("{:.2}%", percent_good)}
+                        </span>
+                    </li>
                     <li>
                         {"Cards visited: "}
                         {format!("{:.2}% of {}", percent_visited, cards.len())}
