@@ -1,0 +1,31 @@
+table.striped tr:nth-of-type(odd) {
+    background-color: #dde;
+    padding: 1ex;
+}
+
+td.number {
+    text-align: right;
+}
+
+.tooltip {
+    position: relative;
+    display: inline-block;
+    border-bottom: 1px dotted blueviolet;
+}
+
+.tooltip .tooltiptext {
+    visibility: hidden;
+    width: 20em;
+    background-color: #3c4a4a;
+    color: #ececec;
+    text-align: left;
+    padding: 5px 1px;
+    border-radius: 3px;
+    position: absolute;
+    z-index: 1;
+}
+
+.tooltip:hover .tooltiptext {
+    visibility: visible;
+}
+

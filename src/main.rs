@@ -323,7 +323,15 @@ impl Model {
             let ratio = if goodnesses.is_empty() {
                 0.0
             } else {
-                let n_good = goodnesses.iter().filter(|s| *s > &0.95).count();
+                let n_good = goodnesses
+                    .iter()
+                    .zip(cards.iter())
+                    .filter(|(g, c)| {
+                        let (h, m) = hits_misses(c);
+                        h + m > 1  // just one response isn't enough to "know it well"
+                        && *g > &0.95
+                    })
+                    .count();
                 n_good as f32 / goodnesses.len() as f32
             };
             100.0 * ratio
@@ -331,8 +339,26 @@ impl Model {
         html! {
             <>
                 <ul>
-                    <li>{"Overall score: "}{format!("{:.2}", mean(&goodnesses))}</li>
-                    <li>{"Cards known well: "}{format!("{:.2}%", percent_good)}</li>
+                    <li>
+                        <span class="tooltip">
+                            <span class="tooltiptext">
+                                {"Average per card"}
+                                <br />
+                                {"(hits - misses) / (hits + misses)"}
+                            </span>
+                            {"Overall score: "}{format!("{:.2}", mean(&goodnesses))}
+                        </span>
+                    </li>
+                    <li>
+                        <span class="tooltip">
+                            <span class="tooltiptext">
+                                {"Visited more than once and with"}
+                                <br />
+                                {"(hits - misses) / (hits + misses) > 0.95"}
+                            </span>
+                            {"Cards known well: "}{format!("{:.2}%", percent_good)}
+                        </span>
+                    </li>
                     <li>
                         {"Cards visited: "}
                         {format!("{:.2}% of {}", percent_visited, cards.len())}
