@@ -323,7 +323,15 @@ impl Model {
             let ratio = if goodnesses.is_empty() {
                 0.0
             } else {
-                let n_good = goodnesses.iter().filter(|s| *s > &0.95).count();
+                let n_good = goodnesses
+                    .iter()
+                    .zip(cards.iter())
+                    .filter(|(g, c)| {
+                        let (h, m) = hits_misses(c);
+                        h + m > 2  // just one response isn't enough to "know it well" 
+                        && *g > &0.95
+                    })
+                    .count();
                 n_good as f32 / goodnesses.len() as f32
             };
             100.0 * ratio
