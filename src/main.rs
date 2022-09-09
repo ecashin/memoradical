@@ -19,6 +19,7 @@ const COPY_BORDER_FADE_MS: u32 = 50;
 const ROW_DISPLAY_BREATHER_MS: u32 = 50;
 const ROW_DISPLAY_INITIAL: usize = 50;
 const STORAGE_KEY_CARDS: &str = "net.noserose.memoradical:cards";
+const UPLOAD_ERR_DISPLAY_MS: u32 = 5000;
 
 enum Msg {
     AddCard,
@@ -41,6 +42,7 @@ enum Msg {
     ReverseModeToggle,
     SetClipboardError(anyhow::Error),
     SetHelp(String),
+    SetUploadError(Option<String>),
     StatsMode,
     StoreCards,
     StoreNewCards(String),
@@ -104,20 +106,22 @@ struct Model {
     copy_border_opacity: f32,
     copy_border_fader: Option<Interval>,
     current_card: Option<usize>,
+    deletion_target: Option<usize>,
     display_history: LinkedList<usize>,
+    focus_node: NodeRef,
     help_html: Option<String>,
     help_node: NodeRef,
+    mode: Mode,
     n_rows_displayed: usize,
+    need_key_focus: bool,
     new_front_text: String,
     new_back_text: String,
-    focus_node: NodeRef,
     readers: Vec<FileReader>,
     rerender: Option<Timeout>,
-    mode: Mode,
-    need_key_focus: bool,
-    visible_face: Face,
     reverse_mode: bool,
-    deletion_target: Option<usize>,
+    upload_clearer: Option<Timeout>,
+    upload_error: Option<String>,
+    visible_face: Face,
 }
 
 fn mean(x: &[f32]) -> f32 {
@@ -428,20 +432,22 @@ impl Component for Model {
             copy_border_opacity: 0.0,
             copy_border_fader: None,
             current_card: None,
+            deletion_target: None,
             display_history: LinkedList::new(),
+            focus_node: NodeRef::default(),
             help_html: None,
             help_node: NodeRef::default(),
+            mode: Mode::Study,
             n_rows_displayed: 0,
+            need_key_focus: true,
             new_back_text: "".to_owned(),
             new_front_text: "".to_owned(),
-            visible_face: Face::Prompt,
             readers: vec![],
-            focus_node: NodeRef::default(),
-            mode: Mode::Study,
-            need_key_focus: true,
             rerender: None,
             reverse_mode: false,
-            deletion_target: None,
+            upload_clearer: None,
+            upload_error: None,
+            visible_face: Face::Prompt,
         };
         instance.current_card = Some(instance.choose_card());
         instance
@@ -647,6 +653,17 @@ impl Component for Model {
                 self.help_html = Some(help);
                 true
             }
+            Msg::SetUploadError(e) => {
+                self.upload_error = e;
+                let handle = {
+                    let link = ctx.link().clone();
+                    Timeout::new(UPLOAD_ERR_DISPLAY_MS, move || {
+                        link.send_message(Msg::SetUploadError(None))
+                    })
+                };
+                self.upload_clearer = Some(handle);
+                true
+            }
             Msg::StatsMode => {
                 self.change_mode(Mode::Stats);
                 true
@@ -659,13 +676,20 @@ impl Component for Model {
                 true
             }
             Msg::StoreNewCards(json) => {
-                let cards: Vec<Card> = serde_json::from_str(&json).unwrap();
-                self.cards = cards;
-                self.current_card = Some(self.choose_card());
-                self.visible_face = Face::Prompt;
-                LocalStorage::set(STORAGE_KEY_CARDS, json)
-                    .context("storing cards")
-                    .unwrap();
+                match serde_json::from_str::<Vec<Card>>(&json) {
+                    Err(e) => {
+                        ctx.link()
+                            .send_message(Msg::SetUploadError(Some(format!("{e}"))));
+                    }
+                    Ok(cards) => {
+                        self.cards = cards;
+                        self.current_card = Some(self.choose_card());
+                        self.visible_face = Face::Prompt;
+                        LocalStorage::set(STORAGE_KEY_CARDS, json)
+                            .context("storing cards")
+                            .unwrap();
+                    }
+                }
                 true
             }
             Msg::StudyMode => {
@@ -681,15 +705,21 @@ impl Component for Model {
                 true
             }
             Msg::UploadCards(files) => {
-                assert_eq!(files.len(), 1);
-                let task = {
-                    let link = ctx.link().clone();
-                    read_as_text(&files[0], move |result| {
-                        link.send_message(Msg::StoreNewCards(result.unwrap()));
-                    })
-                };
-                self.readers.push(task);
-                true
+                if files.len() != 1 {
+                    ctx.link().send_message(Msg::SetUploadError(Some(
+                        "Multiple file upload unsupported".to_owned(),
+                    )));
+                    false
+                } else {
+                    let task = {
+                        let link = ctx.link().clone();
+                        read_as_text(&files[0], move |result| {
+                            link.send_message(Msg::StoreNewCards(result.unwrap()));
+                        })
+                    };
+                    self.readers.push(task);
+                    true
+                }
             }
         };
         if self.mode == Mode::Study && self.current_card.is_none() {
@@ -757,8 +787,12 @@ impl Component for Model {
         } else {
             html! {}
         };
-        let upload_html = html! {
-            <div>
+        let upload_button = if let Some(err) = &self.upload_error {
+            html! {
+                <button disabled=true>{err}</button>
+            }
+        } else {
+            html! {
                 <input type="file" multiple=false
                     onchange={ctx.link().callback(move |e: Event| {
                         let mut result = Vec::new();
@@ -773,6 +807,11 @@ impl Component for Model {
                         }
                         Msg::UploadCards(result)
                     })}/>
+            }
+        };
+        let upload_html = html! {
+            <div>
+                {upload_button}
                 <span class={
                     if self.clipboard_error.is_some() {
                         "tooltip"
