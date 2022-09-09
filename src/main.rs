@@ -39,6 +39,7 @@ enum Msg {
     Prev,
     Render,
     ReverseModeToggle,
+    SetClipboardError(anyhow::Error),
     SetHelp(String),
     StatsMode,
     StoreCards,
@@ -99,6 +100,7 @@ impl Face {
 
 struct Model {
     cards: Vec<Card>,
+    clipboard_error: Option<String>,
     copy_border_opacity: f32,
     copy_border_fader: Option<Interval>,
     current_card: Option<usize>,
@@ -422,6 +424,7 @@ impl Component for Model {
         let cards: Vec<Card> = serde_json::from_str(&json.unwrap()).unwrap();
         let mut instance = Self {
             cards,
+            clipboard_error: None,
             copy_border_opacity: 0.0,
             copy_border_fader: None,
             current_card: None,
@@ -488,7 +491,7 @@ impl Component for Model {
                     match copy_cards_to_clipboard(&cards).await {
                         Err(e) => {
                             console_dbg!(&e);
-                            Msg::Noop
+                            Msg::SetClipboardError(e)
                         }
                         Ok(_) => Msg::CopyCardsSuccess,
                     }
@@ -636,6 +639,10 @@ impl Component for Model {
                 self.reverse_mode = !self.reverse_mode;
                 true
             }
+            Msg::SetClipboardError(e) => {
+                self.clipboard_error = Some(format!("{}", e));
+                true
+            }
             Msg::SetHelp(help) => {
                 self.help_html = Some(help);
                 true
@@ -766,12 +773,30 @@ impl Component for Model {
                         }
                         Msg::UploadCards(result)
                     })}/>
-                <button
-                    onclick={ctx.link().callback(move |_| Msg::CopyCards)}
-                    style={self.copy_button_style()}
-                >
-                    {"Copy Cards to Clipboard"}
-                </button>
+                <span class={
+                    if self.clipboard_error.is_some() {
+                        "tooltip"
+                    } else {
+                        ""
+                    }
+                }>
+                    <span class="tooltiptext">
+                        {
+                            if let Some(s) = &self.clipboard_error {
+                                s.clone()
+                            } else {
+                                "".to_owned()
+                            }
+                        }
+                    </span>
+                    <button
+                        onclick={ctx.link().callback(move |_| Msg::CopyCards)}
+                        disabled={self.clipboard_error.is_some()}
+                        style={self.copy_button_style()}
+                    >
+                        {"Copy Cards to Clipboard"}
+                    </button>
+                </span>
             </div>
         };
         let onkeypress = {
