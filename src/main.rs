@@ -25,6 +25,8 @@ enum Msg {
     AddCard,
     AddMode,
     AllCardsMode,
+    ChooseMissedToggle,
+    ChooseNeglectedToggle,
     CopyCards,
     CopyCardsSuccess,
     DeleteCard(usize),
@@ -102,6 +104,8 @@ impl Face {
 
 struct Model {
     cards: Vec<Card>,
+    choose_missed: bool,
+    choose_neglected: bool,
     clipboard_error: Option<String>,
     copy_border_opacity: f32,
     copy_border_fader: Option<Interval>,
@@ -202,30 +206,43 @@ impl Model {
     fn choose_card(&self) -> usize {
         let rng = &mut rand::thread_rng();
         let history: HashSet<_> = self.display_history.iter().copied().collect();
-        let weights: Vec<_> = self
-            .cards
-            .iter()
-            .enumerate()
-            .map(|(i, card)| {
-                if history.contains(&i) {
-                    0.0
+        let mut weights: Vec<_> = if self.choose_missed {
+            self.cards
+                .iter()
+                .enumerate()
+                .map(|(i, card)| {
+                    if history.contains(&i) {
+                        0.0
+                    } else {
+                        let misses = if self.reverse_mode {
+                            card.reverse_misses.unwrap_or_default()
+                        } else {
+                            card.misses
+                        };
+                        let hits = if self.reverse_mode {
+                            card.reverse_hits.unwrap_or_default()
+                        } else {
+                            card.hits
+                        };
+                        let shape1 = misses + 1;
+                        let shape2 = hits + 1;
+                        Beta::new(shape1 as f64, shape2 as f64).unwrap().sample(rng)
+                    }
+                })
+                .collect()
+        } else {
+            vec![if self.choose_neglected { 0.0 } else { 1.0 }; self.cards.len()]
+        };
+        if self.choose_neglected {
+            for (w, c) in weights.iter_mut().zip(self.cards.iter()) {
+                let n_visits = c.hits + c.misses;
+                *w += if n_visits == 0 {
+                    1.0
                 } else {
-                    let misses = if self.reverse_mode {
-                        card.reverse_misses.unwrap_or_default()
-                    } else {
-                        card.misses
-                    };
-                    let hits = if self.reverse_mode {
-                        card.reverse_hits.unwrap_or_default()
-                    } else {
-                        card.hits
-                    };
-                    let shape1 = misses + 1;
-                    let shape2 = hits + 1;
-                    Beta::new(shape1 as f64, shape2 as f64).unwrap().sample(rng)
-                }
-            })
-            .collect();
+                    1.0 / n_visits as f64
+                };
+            }
+        }
         let dist = WeightedIndex::new(&weights).unwrap();
         dist.sample(rng)
     }
@@ -385,7 +402,52 @@ impl Model {
             </>
         }
     }
+
+    fn study_checkboxes(&self, ctx: &yew::Context<Model>) -> Html {
+        let link = ctx.link().clone();
+        let cmissed = html! {
+            <div class="form-check">
+                <input
+                    id="choose-missed-checkbox"
+                    class="form-check-input"
+                    type={"checkbox"}
+                    value=""
+                    checked={ self.choose_missed }
+                    autocomplete={"off"}
+                    onclick={link.callback(move |_| Msg::ChooseMissedToggle)}
+                />
+                <label
+                    class="choose-missed-label"
+                    for="choose-missed-checkbox">{"prefer missed cards"}
+                </label>
+            </div>
+        };
+        let cneglected = html! {
+            <div class="form-check">
+                <input
+                    id="choose-neglected-checkbox"
+                    class="form-check-input"
+                    type={"checkbox"}
+                    value=""
+                    checked={ self.choose_neglected }
+                    autocomplete={"off"}
+                    onclick={link.callback(move |_| Msg::ChooseNeglectedToggle)}
+                />
+                <label
+                    class="form-check-label"
+                    for="choose-neglected-checkbox">{"prefer neglected cards"}
+                </label>
+            </div>
+        };
+        html! {
+            <>
+                {cmissed}
+                {cneglected}
+            </>
+        }
+    }
 }
+
 async fn fetch_html(resource: &str) -> Result<String> {
     let html = gloo_net::http::Request::get(resource)
         .send()
@@ -428,6 +490,8 @@ impl Component for Model {
         let cards: Vec<Card> = serde_json::from_str(&json.unwrap()).unwrap();
         let mut instance = Self {
             cards,
+            choose_missed: true,
+            choose_neglected: false,
             clipboard_error: None,
             copy_border_opacity: 0.0,
             copy_border_fader: None,
@@ -489,6 +553,14 @@ impl Component for Model {
             }
             Msg::AllCardsMode => {
                 self.change_mode(Mode::AllCards);
+                true
+            }
+            Msg::ChooseMissedToggle => {
+                self.choose_missed = !self.choose_missed;
+                true
+            }
+            Msg::ChooseNeglectedToggle => {
+                self.choose_neglected = !self.choose_neglected;
                 true
             }
             Msg::CopyCards => {
@@ -948,11 +1020,13 @@ impl Component for Model {
                 }
             }
             Mode::Study => {
+                let choice_checkboxes_html = self.study_checkboxes(ctx);
                 html! {
                     <div id="memoradical" {onkeypress}>
                         {mode_buttons}
                         <br/>
                         {reverse_mode_html}
+                        {choice_checkboxes_html}
                         {card_html}
                         <button ref={self.focus_node.clone()}
                             onclick={ctx.link().callback(|_| Msg::Flip)}>{ "Flip" }</button>
