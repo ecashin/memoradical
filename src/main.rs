@@ -16,6 +16,7 @@ use web_sys::{Event, HtmlElement, HtmlInputElement};
 use yew::prelude::*;
 
 const COPY_BORDER_FADE_MS: u32 = 50;
+const GOODNESS_CRITERION: f32 = 0.6; // otherwise it's too hard to make up for a few misses
 const ROW_DISPLAY_BREATHER_MS: u32 = 50;
 const ROW_DISPLAY_INITIAL: usize = 50;
 const STORAGE_KEY_CARDS: &str = "net.noserose.memoradical:cards";
@@ -203,7 +204,10 @@ impl Model {
         self.mode = new_mode;
     }
 
-    fn choose_card(&self) -> usize {
+    fn choose_card(&self) -> Option<usize> {
+        if self.cards.is_empty() {
+            return None;
+        }
         let rng = &mut rand::thread_rng();
         let mut weights: Vec<_> = if self.choose_missed {
             self.cards
@@ -241,7 +245,7 @@ impl Model {
             weights[*i] = 0.0;
         }
         let dist = WeightedIndex::new(&weights).unwrap();
-        dist.sample(rng)
+        Some(dist.sample(rng))
     }
 
     fn copy_button_style(&self) -> String {
@@ -268,6 +272,11 @@ impl Model {
 
     fn stats_html(&self) -> Html {
         let mut cards = self.cards.clone();
+        if cards.is_empty() {
+            return html! {
+                <p>{"There are no cards."}</p>
+            };
+        }
         let hits_misses = |card: &Card| {
             if self.reverse_mode {
                 (
@@ -349,7 +358,7 @@ impl Model {
                     .filter(|(g, c)| {
                         let (h, m) = hits_misses(c);
                         h + m > 1  // just one response isn't enough to "know it well"
-                        && *g > &0.95
+                        && *g >= &GOODNESS_CRITERION
                     })
                     .count();
                 n_good as f32 / goodnesses.len() as f32
@@ -366,7 +375,7 @@ impl Model {
                                 <br />
                                 {"(hits - misses) / (hits + misses)"}
                             </span>
-                            {"Overall score: "}{format!("{:.2}", mean(&goodnesses))}
+                            {"Overall score: "}{format!("{:.2}", 100.0 * mean(&goodnesses))}
                         </span>
                     </li>
                     <li>
@@ -374,7 +383,7 @@ impl Model {
                             <span class="tooltiptext">
                                 {"Visited more than once and with"}
                                 <br />
-                                {"(hits - misses) / (hits + misses) > 0.95"}
+                                {format!("(hits - misses) / (hits + misses) > {:.2}", GOODNESS_CRITERION)}
                             </span>
                             {"Cards known well: "}{format!("{:.2}%", percent_good)}
                         </span>
@@ -510,7 +519,7 @@ impl Component for Model {
             upload_error: None,
             visible_face: Face::Prompt,
         };
-        instance.current_card = Some(instance.choose_card());
+        instance.current_card = instance.choose_card();
         instance
     }
 
@@ -695,7 +704,7 @@ impl Component for Model {
                 if self.current_card.is_some() {
                     self.record_display(self.current_card.unwrap());
                 }
-                self.current_card = Some(self.choose_card());
+                self.current_card = self.choose_card();
                 self.visible_face = Face::Prompt;
                 true
             }
@@ -751,8 +760,9 @@ impl Component for Model {
                             .send_message(Msg::SetUploadError(Some(format!("{e}"))));
                     }
                     Ok(cards) => {
+                        self.display_history.clear();
                         self.cards = cards;
-                        self.current_card = Some(self.choose_card());
+                        self.current_card = self.choose_card();
                         self.visible_face = Face::Prompt;
                         LocalStorage::set(STORAGE_KEY_CARDS, json)
                             .context("storing cards")
@@ -792,7 +802,7 @@ impl Component for Model {
             }
         };
         if self.mode == Mode::Study && self.current_card.is_none() {
-            self.current_card = Some(self.choose_card());
+            self.current_card = self.choose_card();
             true
         } else {
             need_render
