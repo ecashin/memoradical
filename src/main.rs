@@ -1,5 +1,5 @@
 use std::cmp::Ordering;
-use std::collections::{HashSet, LinkedList};
+use std::collections::LinkedList;
 
 use anyhow::{anyhow, Context, Result};
 use gloo_console::console_dbg;
@@ -205,29 +205,23 @@ impl Model {
 
     fn choose_card(&self) -> usize {
         let rng = &mut rand::thread_rng();
-        let history: HashSet<_> = self.display_history.iter().copied().collect();
         let mut weights: Vec<_> = if self.choose_missed {
             self.cards
                 .iter()
-                .enumerate()
-                .map(|(i, card)| {
-                    if history.contains(&i) {
-                        0.0
+                .map(|card| {
+                    let misses = if self.reverse_mode {
+                        card.reverse_misses.unwrap_or_default()
                     } else {
-                        let misses = if self.reverse_mode {
-                            card.reverse_misses.unwrap_or_default()
-                        } else {
-                            card.misses
-                        };
-                        let hits = if self.reverse_mode {
-                            card.reverse_hits.unwrap_or_default()
-                        } else {
-                            card.hits
-                        };
-                        let shape1 = misses + 1;
-                        let shape2 = hits + 1;
-                        Beta::new(shape1 as f64, shape2 as f64).unwrap().sample(rng)
-                    }
+                        card.misses
+                    };
+                    let hits = if self.reverse_mode {
+                        card.reverse_hits.unwrap_or_default()
+                    } else {
+                        card.hits
+                    };
+                    let shape1 = misses + 1;
+                    let shape2 = hits + 1;
+                    Beta::new(shape1 as f64, shape2 as f64).unwrap().sample(rng)
                 })
                 .collect()
         } else {
@@ -242,6 +236,9 @@ impl Model {
                     1.0 / n_visits as f64
                 };
             }
+        }
+        for i in self.display_history.iter() {
+            weights[*i] = 0.0;
         }
         let dist = WeightedIndex::new(&weights).unwrap();
         dist.sample(rng)
