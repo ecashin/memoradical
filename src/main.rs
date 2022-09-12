@@ -16,6 +16,7 @@ use web_sys::{Event, HtmlElement, HtmlInputElement};
 use yew::prelude::*;
 
 const COPY_BORDER_FADE_MS: u32 = 50;
+const GOODNESS_CRITERION: f32 = 0.6; // otherwise it's too hard to make up for a few misses
 const ROW_DISPLAY_BREATHER_MS: u32 = 50;
 const ROW_DISPLAY_INITIAL: usize = 50;
 const STORAGE_KEY_CARDS: &str = "net.noserose.memoradical:cards";
@@ -357,7 +358,7 @@ impl Model {
                     .filter(|(g, c)| {
                         let (h, m) = hits_misses(c);
                         h + m > 1  // just one response isn't enough to "know it well"
-                        && *g > &0.95
+                        && *g >= &GOODNESS_CRITERION
                     })
                     .count();
                 n_good as f32 / goodnesses.len() as f32
@@ -382,7 +383,7 @@ impl Model {
                             <span class="tooltiptext">
                                 {"Visited more than once and with"}
                                 <br />
-                                {"(hits - misses) / (hits + misses) > 0.95"}
+                                {format!("(hits - misses) / (hits + misses) > {:.2}", GOODNESS_CRITERION)}
                             </span>
                             {"Cards known well: "}{format!("{:.2}%", percent_good)}
                         </span>
