@@ -374,7 +374,7 @@ impl Model {
                                 <br />
                                 {"(hits - misses) / (hits + misses)"}
                             </span>
-                            {"Overall score: "}{format!("{:.2}", mean(&goodnesses))}
+                            {"Overall score: "}{format!("{:.2}", 100.0 * mean(&goodnesses))}
                         </span>
                     </li>
                     <li>
