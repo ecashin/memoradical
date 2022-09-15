@@ -87,11 +87,14 @@ impl Card {
             reverse_misses: None,
         }
     }
-    fn clear_counts(&mut self) {
-        self.hits = 0;
-        self.misses = 0;
-        self.reverse_hits = Some(0);
-        self.reverse_misses = Some(0);
+    fn clear_counts(&mut self, reverse_mode: bool) {
+        if reverse_mode {
+            self.reverse_hits = Some(0);
+            self.reverse_misses = Some(0);
+        } else {
+            self.hits = 0;
+            self.misses = 0;
+        }
     }
 }
 
@@ -208,6 +211,7 @@ impl Model {
         if new_mode == Mode::Study && self.mode != Mode::Study {
             self.need_key_focus = true;
         }
+        self.clear_counts_request = false;
         self.n_rows_displayed = ROW_DISPLAY_INITIAL;
         self.mode = new_mode;
     }
@@ -582,8 +586,9 @@ impl Component for Model {
                 if yesno {
                     if self.clear_counts_request {
                         for c in self.cards.iter_mut() {
-                            c.clear_counts();
+                            c.clear_counts(self.reverse_mode);
                         }
+                        ctx.link().send_message(Msg::StoreCards);
                     }
                     self.clear_counts_request = !self.clear_counts_request;
                 } else {
@@ -742,6 +747,7 @@ impl Component for Model {
             }
             Msg::Render => true,
             Msg::ReverseModeToggle => {
+                self.clear_counts_request = false;
                 self.reverse_mode = !self.reverse_mode;
                 true
             }
@@ -1044,7 +1050,7 @@ impl Component for Model {
                     html! {
                         <span>
                             <button class="confirm" onclick={ctx.link().callback(|_| Msg::ClearCounts(true))}>
-                                {"Confirm: Clear All Hit and Miss Counts"}
+                                {"Confirm: Clear Hit and Miss Counts"}
                             </button>
                             <button class="cancel" onclick={ctx.link().callback(|_| Msg::ClearCounts(false))}>
                                 {"Cancel: Do Not Clear Counts"}
@@ -1052,9 +1058,17 @@ impl Component for Model {
                         </span>
                     }
                 } else {
+                    let text = format!(
+                        "Clear All ({}-mode) Hit and Miss Counts",
+                        if self.reverse_mode {
+                            "Reverse"
+                        } else {
+                            "Forward"
+                        }
+                    );
                     html! {
                         <button onclick={ctx.link().callback(|_| Msg::ClearCounts(true))}>
-                            {"Clear All (Forward & Reverse) Hit and Miss Counts"}
+                            {text}
                         </button>
                     }
                 };
