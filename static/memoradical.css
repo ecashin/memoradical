@@ -29,3 +29,10 @@ td.number {
     visibility: visible;
 }
 
+.confirm {
+    background-color: #aaffaa;
+}
+
+.cancel {
+    background-color: #ffaaaa;
+}
