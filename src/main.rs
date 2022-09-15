@@ -28,6 +28,7 @@ enum Msg {
     AllCardsMode,
     ChooseMissedToggle,
     ChooseNeglectedToggle,
+    ClearCounts(bool),
     CopyCards,
     CopyCardsSuccess,
     DeleteCard(usize),
@@ -86,6 +87,12 @@ impl Card {
             reverse_misses: None,
         }
     }
+    fn clear_counts(&mut self) {
+        self.hits = 0;
+        self.misses = 0;
+        self.reverse_hits = Some(0);
+        self.reverse_misses = Some(0);
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -107,6 +114,7 @@ struct Model {
     cards: Vec<Card>,
     choose_missed: bool,
     choose_neglected: bool,
+    clear_counts_request: bool,
     clipboard_error: Option<String>,
     copy_border_opacity: f32,
     copy_border_fader: Option<Interval>,
@@ -498,6 +506,7 @@ impl Component for Model {
             cards,
             choose_missed: true,
             choose_neglected: false,
+            clear_counts_request: false,
             clipboard_error: None,
             copy_border_opacity: 0.0,
             copy_border_fader: None,
@@ -567,6 +576,19 @@ impl Component for Model {
             }
             Msg::ChooseNeglectedToggle => {
                 self.choose_neglected = !self.choose_neglected;
+                true
+            }
+            Msg::ClearCounts(yesno) => {
+                if yesno {
+                    if self.clear_counts_request {
+                        for c in self.cards.iter_mut() {
+                            c.clear_counts();
+                        }
+                    }
+                    self.clear_counts_request = !self.clear_counts_request;
+                } else {
+                    self.clear_counts_request = yesno;
+                }
                 true
             }
             Msg::CopyCards => {
@@ -1018,10 +1040,29 @@ impl Component for Model {
                 if self.n_rows_displayed < self.cards.len() {
                     ctx.link().send_message(Msg::DisplayMoreRows);
                 }
+                let clear_html = if self.clear_counts_request {
+                    html! {
+                        <span>
+                            <button class="confirm" onclick={ctx.link().callback(|_| Msg::ClearCounts(true))}>
+                                {"Confirm: Clear All Hit and Miss Counts"}
+                            </button>
+                            <button class="cancel" onclick={ctx.link().callback(|_| Msg::ClearCounts(false))}>
+                                {"Cancel: Do Not Clear Counts"}
+                            </button>
+                        </span>
+                    }
+                } else {
+                    html! {
+                        <button onclick={ctx.link().callback(|_| Msg::ClearCounts(true))}>
+                            {"Clear All (Forward & Reverse) Hit and Miss Counts"}
+                        </button>
+                    }
+                };
                 html! {
                     <div>
                         {mode_buttons}
                         {reverse_mode_html}
+                        {clear_html}
                         {self.stats_html()}
                     </div>
                 }
