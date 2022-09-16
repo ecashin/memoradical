@@ -7,13 +7,16 @@ use gloo_file::{
     callbacks::{read_as_text, FileReader},
     File,
 };
-use gloo_storage::{LocalStorage, Storage};
 use gloo_timers::callback::{Interval, Timeout};
 use rand::distributions::WeightedIndex;
 use rand_distr::{Beta, Distribution};
 use serde::{Deserialize, Serialize};
 use web_sys::{Event, HtmlElement, HtmlInputElement};
 use yew::prelude::*;
+
+use localstore::LocalStore;
+
+mod localstore;
 
 const COPY_BORDER_FADE_MS: u32 = 50;
 const GOODNESS_CRITERION: f32 = 0.6; // otherwise it's too hard to make up for a few misses
@@ -135,6 +138,7 @@ struct Model {
     readers: Vec<FileReader>,
     rerender: Option<Timeout>,
     reverse_mode: bool,
+    local_store: LocalStore,
     upload_clearer: Option<Timeout>,
     upload_error: Option<String>,
     visible_face: Face,
@@ -146,64 +150,6 @@ fn mean(x: &[f32]) -> f32 {
     } else {
         x.iter().sum::<f32>() / x.len() as f32
     }
-}
-
-fn store_data() -> Result<String> {
-    let reverse_hits = None;
-    let reverse_misses = None;
-    let cards: Vec<Card> = vec![
-        Card {
-            prompt: "What is the key for flipping a card?".to_owned(),
-            response: "\"f\"".to_owned(),
-            hits: 0,
-            misses: 0,
-            reverse_hits,
-            reverse_misses,
-        },
-        Card {
-            prompt: "What is the key for registering a \"hit\"?".to_owned(),
-            response: "\"h\"".to_owned(),
-            hits: 0,
-            misses: 0,
-            reverse_hits,
-            reverse_misses,
-        },
-        Card {
-            prompt: "What is the key for registering a \"miss\"?".to_owned(),
-            response: "\"m\"".to_owned(),
-            hits: 0,
-            misses: 0,
-            reverse_hits,
-            reverse_misses,
-        },
-        Card {
-            prompt: "What key shows the previous card?".to_owned(),
-            response: "\"p\"".to_owned(),
-            hits: 0,
-            misses: 0,
-            reverse_hits,
-            reverse_misses,
-        },
-        Card {
-            prompt: "What key shows the next card without registering hit or miss?".to_owned(),
-            response: "\"n\"".to_owned(),
-            hits: 0,
-            misses: 0,
-            reverse_hits,
-            reverse_misses,
-        },
-        Card {
-            prompt: "What is the key for editing the current card?".to_owned(),
-            response: "\"e\"".to_owned(),
-            hits: 0,
-            misses: 0,
-            reverse_hits,
-            reverse_misses,
-        },
-    ];
-    let value = serde_json::to_string(&cards).context("serializing cards")?;
-    LocalStorage::set(STORAGE_KEY_CARDS, value.clone()).context("storing cards")?;
-    Ok(value)
 }
 
 impl Model {
@@ -420,7 +366,63 @@ impl Model {
             </>
         }
     }
-
+    fn default_card_data() -> String {
+        let reverse_hits = None;
+        let reverse_misses = None;
+        let cards: Vec<Card> = vec![
+            Card {
+                prompt: "What is the key for flipping a card?".to_owned(),
+                response: "\"f\"".to_owned(),
+                hits: 0,
+                misses: 0,
+                reverse_hits,
+                reverse_misses,
+            },
+            Card {
+                prompt: "What is the key for registering a \"hit\"?".to_owned(),
+                response: "\"h\"".to_owned(),
+                hits: 0,
+                misses: 0,
+                reverse_hits,
+                reverse_misses,
+            },
+            Card {
+                prompt: "What is the key for registering a \"miss\"?".to_owned(),
+                response: "\"m\"".to_owned(),
+                hits: 0,
+                misses: 0,
+                reverse_hits,
+                reverse_misses,
+            },
+            Card {
+                prompt: "What key shows the previous card?".to_owned(),
+                response: "\"p\"".to_owned(),
+                hits: 0,
+                misses: 0,
+                reverse_hits,
+                reverse_misses,
+            },
+            Card {
+                prompt: "What key shows the next card without registering hit or miss?".to_owned(),
+                response: "\"n\"".to_owned(),
+                hits: 0,
+                misses: 0,
+                reverse_hits,
+                reverse_misses,
+            },
+            Card {
+                prompt: "What is the key for editing the current card?".to_owned(),
+                response: "\"e\"".to_owned(),
+                hits: 0,
+                misses: 0,
+                reverse_hits,
+                reverse_misses,
+            },
+        ];
+        serde_json::to_string(&cards)
+            .context("serializing cards")
+            .unwrap()
+    }
     fn study_checkboxes(&self, ctx: &yew::Context<Model>) -> Html {
         let link = ctx.link().clone();
         let cmissed = html! {
@@ -497,15 +499,8 @@ impl Component for Model {
     type Properties = ();
 
     fn create(_ctx: &yew::Context<Self>) -> Self {
-        let retrieved = LocalStorage::get(STORAGE_KEY_CARDS);
-        let json: Option<String> = match retrieved {
-            Ok(json) => Some(json),
-            Err(_e) => match store_data() {
-                Ok(json) => Some(json),
-                Err(_e) => None,
-            },
-        };
-        let cards: Vec<Card> = serde_json::from_str(&json.unwrap()).unwrap();
+        let local_store = LocalStore::new(STORAGE_KEY_CARDS, &Self::default_card_data()).unwrap();
+        let cards: Vec<Card> = serde_json::from_str(&local_store.value()).unwrap();
         let mut instance = Self {
             cards,
             choose_missed: true,
@@ -520,6 +515,7 @@ impl Component for Model {
             focus_node: NodeRef::default(),
             help_html: None,
             help_node: NodeRef::default(),
+            local_store,
             mode: Mode::Study,
             n_rows_displayed: 0,
             need_key_focus: true,
@@ -776,7 +772,8 @@ impl Component for Model {
             }
             Msg::StoreCards => {
                 let json = serde_json::to_string(&self.cards).unwrap();
-                LocalStorage::set(STORAGE_KEY_CARDS, &json)
+                self.local_store
+                    .save(&json)
                     .context("storing existing cards")
                     .unwrap();
                 true
@@ -792,7 +789,8 @@ impl Component for Model {
                         self.cards = cards;
                         self.current_card = self.choose_card();
                         self.visible_face = Face::Prompt;
-                        LocalStorage::set(STORAGE_KEY_CARDS, json)
+                        self.local_store
+                            .save(&json)
                             .context("storing cards")
                             .unwrap();
                     }
