@@ -36,12 +36,18 @@ impl LocalStore {
     }
     pub fn save(&mut self, value: &str) -> Result<()> {
         let data: String = LocalStorage::get(&self.key)?;
-        if Self::hash(&data) == self.checksum {
+        let stored_checksum = Self::hash(&data);
+        if stored_checksum == self.checksum {
             LocalStorage::set(&self.key, value.to_string()).context("storing local data")?;
             self.value = value.to_string();
+            self.checksum = Self::hash(value);
             Ok(())
         } else {
-            Err(anyhow!("local storage has been changed since last loaded"))
+            Err(anyhow!(
+                "local storage has been changed since last loaded (from:{} to:{})",
+                self.checksum,
+                stored_checksum
+            ))
         }
     }
 }
