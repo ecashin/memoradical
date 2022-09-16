@@ -33,31 +33,20 @@ There is a convenience script you can use for that,
 The extra flag is needed to enable the unstable parts
 of `web-sys` that provide access to the browser clipboard.
 
-## TODO
+## Single Tab
 
-Here are improvements that would help out.
+Please avoid using memoradical in multiple tabs in the same browser
+using the same URL.
 
-### Multiple Tabs: Avoid Overwriting Newer Data
+There is only one local storage area for memoradical on a browser
+visiting a URL where memoradical is served.
+The app keeps you from accidentally losing data by stopping
+with a fatal error if it detects that another tab has modified the cards
+after they were loaded.
 
-The local data is different for each server and client pair.
-But if a user has multiple tabs of memoradical open
-in the same browser,
-visiting the same location,
-then it is possible to, e.g., add a card "foo" in one tab (state A),
-add a second card "bar" in another tab (state B),
-and overwrite state A with state B,
-so that the newly stored set of cards lacks "foo".
-
-You might wonder, "Why would they do that!?"
-On accident, probably.
-
-A checksum could be used to ensure that the current
-persistent data is the same as that which was loaded
-earlier.
-This method still entails a race condition,
-but it would suffice for most human-speed concurrency
-and would be a relatively easy enhancement while offering
-a lot of protection.
+In that case, the only functionality available is the copy button,
+which you can use to copy the data to your clipboard for offline
+backup and examination.
 
 ## VsCode
 
