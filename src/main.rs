@@ -127,6 +127,7 @@ struct Model {
     current_card: Option<usize>,
     deletion_target: Option<usize>,
     display_history: LinkedList<usize>,
+    fatal_error: Option<String>,
     focus_node: NodeRef,
     help_html: Option<String>,
     help_node: NodeRef,
@@ -512,6 +513,7 @@ impl Component for Model {
             current_card: None,
             deletion_target: None,
             display_history: LinkedList::new(),
+            fatal_error: None,
             focus_node: NodeRef::default(),
             help_html: None,
             help_node: NodeRef::default(),
@@ -772,10 +774,16 @@ impl Component for Model {
             }
             Msg::StoreCards => {
                 let json = serde_json::to_string(&self.cards).unwrap();
-                self.local_store
+                match self
+                    .local_store
                     .save(&json)
                     .context("storing existing cards")
-                    .unwrap();
+                {
+                    Ok(_) => (),
+                    Err(e) => {
+                        self.fatal_error = Some(format!("{e:?}"));
+                    }
+                }
                 true
             }
             Msg::StoreNewCards(json) => {
@@ -789,10 +797,12 @@ impl Component for Model {
                         self.cards = cards;
                         self.current_card = self.choose_card();
                         self.visible_face = Face::Prompt;
-                        self.local_store
-                            .save(&json)
-                            .context("storing cards")
-                            .unwrap();
+                        match self.local_store.save(&json).context("storing cards") {
+                            Ok(_) => (),
+                            Err(e) => {
+                                self.fatal_error = Some(format!("{e:?}"));
+                            }
+                        }
                     }
                 }
                 true
@@ -836,6 +846,14 @@ impl Component for Model {
     }
 
     fn view(&self, ctx: &yew::Context<Self>) -> Html {
+        if let Some(err) = &self.fatal_error {
+            return html! {
+                <>
+                    <h2>{"Fatal Error"}</h2>
+                    <pre>{err}</pre>
+                </>
+            };
+        }
         let mode_buttons = html! {
             <div>
                 <button disabled={self.mode == Mode::Help} onclick={ctx.link().callback(|_| Msg::HelpMode)}>{"Help"}</button>
