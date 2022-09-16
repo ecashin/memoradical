@@ -33,6 +33,21 @@ There is a convenience script you can use for that,
 The extra flag is needed to enable the unstable parts
 of `web-sys` that provide access to the browser clipboard.
 
+## Single Tab
+
+Please avoid using memoradical in multiple tabs in the same browser
+using the same URL.
+
+There is only one local storage area for memoradical on a browser
+visiting a URL where memoradical is served.
+The app keeps you from accidentally losing data by stopping
+with a fatal error if it detects that another tab has modified the cards
+after they were loaded.
+
+In that case, the only functionality available is the copy button,
+which you can use to copy the data to your clipboard for offline
+backup and examination.
+
 ## VsCode
 
 You can set `rust.rustflags` in your `settings.json`

@@ -846,10 +846,37 @@ impl Component for Model {
     }
 
     fn view(&self, ctx: &yew::Context<Self>) -> Html {
+        let copy_cards_html = html! {
+            <span class={
+                if self.clipboard_error.is_some() {
+                    "tooltip"
+                } else {
+                    ""
+                }
+            }>
+                <span class="tooltiptext">
+                    {
+                        if let Some(s) = &self.clipboard_error {
+                            s.clone()
+                        } else {
+                            "".to_owned()
+                        }
+                    }
+                </span>
+                <button
+                    onclick={ctx.link().callback(move |_| Msg::CopyCards)}
+                    disabled={self.clipboard_error.is_some()}
+                    style={self.copy_button_style()}
+                >
+                    {"Copy Cards to Clipboard"}
+                </button>
+            </span>
+        };
         if let Some(err) = &self.fatal_error {
             return html! {
                 <>
                     <h2>{"Fatal Error"}</h2>
+                    {copy_cards_html}
                     <pre>{err}</pre>
                 </>
             };
@@ -935,30 +962,7 @@ impl Component for Model {
         let upload_html = html! {
             <div>
                 {upload_button}
-                <span class={
-                    if self.clipboard_error.is_some() {
-                        "tooltip"
-                    } else {
-                        ""
-                    }
-                }>
-                    <span class="tooltiptext">
-                        {
-                            if let Some(s) = &self.clipboard_error {
-                                s.clone()
-                            } else {
-                                "".to_owned()
-                            }
-                        }
-                    </span>
-                    <button
-                        onclick={ctx.link().callback(move |_| Msg::CopyCards)}
-                        disabled={self.clipboard_error.is_some()}
-                        style={self.copy_button_style()}
-                    >
-                        {"Copy Cards to Clipboard"}
-                    </button>
-                </span>
+                {copy_cards_html}
             </div>
         };
         let onkeypress = {
