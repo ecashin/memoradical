@@ -30,6 +30,7 @@ enum Msg {
     AddMode,
     AddNewCards,
     AllCardsMode,
+    CancelUpload,
     ChooseMissedToggle,
     ChooseNeglectedToggle,
     ClearCounts(bool),
@@ -501,6 +502,9 @@ impl Model {
                     <button class="cancel" onclick={ctx.link().callback(|_| Msg::StoreNewCards)}>
                         {"Overwrite Existing Cards with New Cards"}
                     </button>
+                    <button onclick={ctx.link().callback(|_| Msg::CancelUpload)}>
+                        {"Cancel"}
+                    </button>
                 </div>
             }
         };
@@ -609,9 +613,9 @@ impl Component for Model {
                 true
             }
             Msg::AddNewCards => {
-                if let Some(new_cards) = &self.new_cards {
+                if let Some(new_cards) = &mut self.new_cards {
                     self.display_history.clear();
-                    self.cards.append(&mut new_cards.clone());
+                    self.cards.append(new_cards);
                     self.new_cards = None;
                     self.current_card = self.choose_card();
                     self.visible_face = Face::Prompt;
@@ -621,6 +625,10 @@ impl Component for Model {
             }
             Msg::AllCardsMode => {
                 self.change_mode(Mode::AllCards);
+                true
+            }
+            Msg::CancelUpload => {
+                self.new_cards = None;
                 true
             }
             Msg::ChooseMissedToggle => {
