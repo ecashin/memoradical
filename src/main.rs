@@ -475,35 +475,33 @@ impl Model {
             html! {
                 <button disabled=true>{err}</button>
             }
+        } else if self.new_cards.is_none() {
+            html! {
+                <input type="file" multiple=false
+                    onchange={ctx.link().callback(move |e: Event| {
+                        let mut result = Vec::new();
+                        let input: HtmlInputElement = e.target_unchecked_into();
+                        if let Some(files) = input.files() {
+                            let files = js_sys::try_iter(&files)
+                                .unwrap()
+                                .unwrap()
+                                .map(|v| web_sys::File::from(v.unwrap()))
+                                .map(File::from);
+                            result.extend(files);
+                        }
+                        Msg::UploadCards(result)
+                    })}/>
+            }
         } else {
-            if self.new_cards.is_none() {
-                html! {
-                    <input type="file" multiple=false
-                        onchange={ctx.link().callback(move |e: Event| {
-                            let mut result = Vec::new();
-                            let input: HtmlInputElement = e.target_unchecked_into();
-                            if let Some(files) = input.files() {
-                                let files = js_sys::try_iter(&files)
-                                    .unwrap()
-                                    .unwrap()
-                                    .map(|v| web_sys::File::from(v.unwrap()))
-                                    .map(File::from);
-                                result.extend(files);
-                            }
-                            Msg::UploadCards(result)
-                        })}/>
-                }
-            } else {
-                html! {
-                    <div>
-                        <button class="confirm" onclick={ctx.link().callback(|_| Msg::AddNewCards)}>
-                            {"Add New Cards to Existing"}
-                        </button>
-                        <button class="cancel" onclick={ctx.link().callback(|_| Msg::StoreNewCards)}>
-                            {"Overwrite Existing Cards with New Cards"}
-                        </button>
-                    </div>
-                }
+            html! {
+                <div>
+                    <button class="confirm" onclick={ctx.link().callback(|_| Msg::AddNewCards)}>
+                        {"Add New Cards to Existing"}
+                    </button>
+                    <button class="cancel" onclick={ctx.link().callback(|_| Msg::StoreNewCards)}>
+                        {"Overwrite Existing Cards with New Cards"}
+                    </button>
+                </div>
             }
         };
         upload_button
