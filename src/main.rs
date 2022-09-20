@@ -28,6 +28,7 @@ const UPLOAD_ERR_DISPLAY_MS: u32 = 5000;
 enum Msg {
     AddCard,
     AddMode,
+    AddNewCards,
     AllCardsMode,
     ChooseMissedToggle,
     ChooseNeglectedToggle,
@@ -41,6 +42,7 @@ enum Msg {
     Flip,
     HelpMode,
     Hit,
+    IngestNewCards(String),
     Miss,
     Next,
     Noop,
@@ -52,7 +54,7 @@ enum Msg {
     SetUploadError(Option<String>),
     StatsMode,
     StoreCards,
-    StoreNewCards(String),
+    StoreNewCards,
     StudyMode,
     UpdateNewBackText(String),
     UpdateNewFrontText(String),
@@ -134,6 +136,7 @@ struct Model {
     mode: Mode,
     n_rows_displayed: usize,
     need_key_focus: bool,
+    new_cards: Option<Vec<Card>>,
     new_front_text: String,
     new_back_text: String,
     readers: Vec<FileReader>,
@@ -467,6 +470,44 @@ impl Model {
             </>
         }
     }
+    fn upload_button_html(&self, ctx: &yew::Context<Model>) -> Html {
+        let upload_button = if let Some(err) = &self.upload_error {
+            html! {
+                <button disabled=true>{err}</button>
+            }
+        } else {
+            if self.new_cards.is_none() {
+                html! {
+                    <input type="file" multiple=false
+                        onchange={ctx.link().callback(move |e: Event| {
+                            let mut result = Vec::new();
+                            let input: HtmlInputElement = e.target_unchecked_into();
+                            if let Some(files) = input.files() {
+                                let files = js_sys::try_iter(&files)
+                                    .unwrap()
+                                    .unwrap()
+                                    .map(|v| web_sys::File::from(v.unwrap()))
+                                    .map(File::from);
+                                result.extend(files);
+                            }
+                            Msg::UploadCards(result)
+                        })}/>
+                }
+            } else {
+                html! {
+                    <div>
+                        <button class="confirm" onclick={ctx.link().callback(|_| Msg::AddNewCards)}>
+                            {"Add New Cards to Existing"}
+                        </button>
+                        <button class="cancel" onclick={ctx.link().callback(|_| Msg::StoreNewCards)}>
+                            {"Overwrite Existing Cards with New Cards"}
+                        </button>
+                    </div>
+                }
+            }
+        };
+        upload_button
+    }
 }
 
 async fn fetch_html(resource: &str) -> Result<String> {
@@ -523,6 +564,7 @@ impl Component for Model {
             need_key_focus: true,
             new_back_text: "".to_owned(),
             new_front_text: "".to_owned(),
+            new_cards: None,
             readers: vec![],
             rerender: None,
             reverse_mode: false,
@@ -566,6 +608,17 @@ impl Component for Model {
             }
             Msg::AddMode => {
                 self.change_mode(Mode::Add);
+                true
+            }
+            Msg::AddNewCards => {
+                if let Some(new_cards) = &self.new_cards {
+                    self.display_history.clear();
+                    self.cards.append(&mut new_cards.clone());
+                    self.new_cards = None;
+                    self.current_card = self.choose_card();
+                    self.visible_face = Face::Prompt;
+                    ctx.link().send_message(Msg::StoreCards);
+                }
                 true
             }
             Msg::AllCardsMode => {
@@ -709,6 +762,18 @@ impl Component for Model {
                     false
                 }
             }
+            Msg::IngestNewCards(json) => {
+                match serde_json::from_str::<Vec<Card>>(&json) {
+                    Err(e) => {
+                        ctx.link()
+                            .send_message(Msg::SetUploadError(Some(format!("{e}"))));
+                    }
+                    Ok(cards) => {
+                        self.new_cards = Some(cards);
+                    }
+                }
+                true
+            }
             Msg::Miss => {
                 if let Some(card) = self.current_card {
                     if self.reverse_mode {
@@ -786,24 +851,14 @@ impl Component for Model {
                 }
                 true
             }
-            Msg::StoreNewCards(json) => {
-                match serde_json::from_str::<Vec<Card>>(&json) {
-                    Err(e) => {
-                        ctx.link()
-                            .send_message(Msg::SetUploadError(Some(format!("{e}"))));
-                    }
-                    Ok(cards) => {
-                        self.display_history.clear();
-                        self.cards = cards;
-                        self.current_card = self.choose_card();
-                        self.visible_face = Face::Prompt;
-                        match self.local_store.save(&json).context("storing cards") {
-                            Ok(_) => (),
-                            Err(e) => {
-                                self.fatal_error = Some(format!("{e:?}"));
-                            }
-                        }
-                    }
+            Msg::StoreNewCards => {
+                if let Some(cards) = &self.new_cards {
+                    self.display_history.clear();
+                    self.cards = cards.clone();
+                    self.new_cards = None;
+                    self.current_card = self.choose_card();
+                    self.visible_face = Face::Prompt;
+                    ctx.link().send_message(Msg::StoreCards);
                 }
                 true
             }
@@ -829,7 +884,7 @@ impl Component for Model {
                     let task = {
                         let link = ctx.link().clone();
                         read_as_text(&files[0], move |result| {
-                            link.send_message(Msg::StoreNewCards(result.unwrap()));
+                            link.send_message(Msg::IngestNewCards(result.unwrap()));
                         })
                     };
                     self.readers.push(task);
@@ -937,31 +992,10 @@ impl Component for Model {
         } else {
             html! {}
         };
-        let upload_button = if let Some(err) = &self.upload_error {
-            html! {
-                <button disabled=true>{err}</button>
-            }
-        } else {
-            html! {
-                <input type="file" multiple=false
-                    onchange={ctx.link().callback(move |e: Event| {
-                        let mut result = Vec::new();
-                        let input: HtmlInputElement = e.target_unchecked_into();
-                        if let Some(files) = input.files() {
-                            let files = js_sys::try_iter(&files)
-                                .unwrap()
-                                .unwrap()
-                                .map(|v| web_sys::File::from(v.unwrap()))
-                                .map(File::from);
-                            result.extend(files);
-                        }
-                        Msg::UploadCards(result)
-                    })}/>
-            }
-        };
+        let upload_button_html = self.upload_button_html(ctx);
         let upload_html = html! {
             <div>
-                {upload_button}
+                {upload_button_html}
                 {copy_cards_html}
             </div>
         };
