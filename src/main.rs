@@ -1,3 +1,4 @@
+use std::cell::RefCell;
 use std::cmp::Ordering;
 use std::collections::LinkedList;
 
@@ -14,8 +15,10 @@ use serde::{Deserialize, Serialize};
 use web_sys::{Event, HtmlElement, HtmlInputElement};
 use yew::prelude::*;
 
+use components::Stats;
 use localstore::LocalStore;
 
+mod components;
 mod localstore;
 
 const COPY_BORDER_FADE_MS: u32 = 50;
@@ -72,8 +75,8 @@ enum Mode {
     Study,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-struct Card {
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct Card {
     prompt: String,
     response: String,
     hits: usize,
@@ -147,14 +150,6 @@ struct Model {
     upload_clearer: Option<Timeout>,
     upload_error: Option<String>,
     visible_face: Face,
-}
-
-fn mean(x: &[f32]) -> f32 {
-    if x.is_empty() {
-        0.0
-    } else {
-        x.iter().sum::<f32>() / x.len() as f32
-    }
 }
 
 impl Model {
@@ -233,144 +228,6 @@ impl Model {
         }
     }
 
-    fn stats_html(&self) -> Html {
-        let mut cards = self.cards.clone();
-        if cards.is_empty() {
-            return html! {
-                <p>{"There are no cards."}</p>
-            };
-        }
-        let hits_misses = |card: &Card| {
-            if self.reverse_mode {
-                (
-                    card.reverse_hits.unwrap_or_default(),
-                    card.reverse_misses.unwrap_or_default(),
-                )
-            } else {
-                (card.hits, card.misses)
-            }
-        };
-        let hit_ratio = |h, m| {
-            let total = h + m;
-            if total == 0 {
-                0.0
-            } else {
-                h as f32 / total as f32
-            }
-        };
-        let r = |card: &Card| {
-            let (h, m) = hits_misses(card);
-            hit_ratio(h, m)
-        };
-        let goodness = |card: &Card| {
-            let (h, m) = hits_misses(card);
-            let total = h + m;
-            if total == 0 {
-                0.0
-            } else {
-                let diff = h as isize - m as isize;
-                diff as f32 / total as f32
-            }
-        };
-        cards.sort_by(|a, b| goodness(b).partial_cmp(&goodness(a)).unwrap());
-        let percent_visited = 100.0
-            * (cards
-                .iter()
-                .filter(|c| {
-                    let (h, m) = hits_misses(c);
-                    h + m > 0
-                })
-                .count() as f32)
-            / cards.len() as f32;
-        let n_responses = cards
-            .iter()
-            .map(|c| {
-                let (h, m) = hits_misses(c);
-                h + m
-            })
-            .sum::<usize>();
-        let percents = cards.iter().map(|c| r(c) * 100.0).collect::<Vec<_>>();
-        let goodnesses = cards.iter().map(|c| goodness(c)).collect::<Vec<_>>();
-        let rows = cards
-            .iter()
-            .take(self.n_rows_displayed)
-            .zip(percents.iter())
-            .zip(goodnesses.iter())
-            .map(|((c, percent), good)| {
-                let (h, m) = hits_misses(c);
-                html! {
-                    <tr>
-                        <td>{&c.prompt}</td>
-                        <td>{&c.response}</td>
-                        <td class="number">{h}</td>
-                        <td class="number">{m}</td>
-                        <td class="number">{format!("{:.2}", percent)}</td>
-                        <td class="number">{format!("{:.2}", good)}</td>
-                    </tr>
-                }
-            })
-            .collect::<Vec<_>>();
-        let prefix = if self.reverse_mode { "reverse " } else { "" };
-        let percent_good = {
-            let ratio = if goodnesses.is_empty() {
-                0.0
-            } else {
-                let n_good = goodnesses
-                    .iter()
-                    .zip(cards.iter())
-                    .filter(|(g, c)| {
-                        let (h, m) = hits_misses(c);
-                        h + m > 1  // just one response isn't enough to "know it well"
-                        && *g >= &GOODNESS_CRITERION
-                    })
-                    .count();
-                n_good as f32 / goodnesses.len() as f32
-            };
-            100.0 * ratio
-        };
-        html! {
-            <>
-                <ul>
-                    <li>
-                        <span class="tooltip">
-                            <span class="tooltiptext">
-                                {"Average per card"}
-                                <br />
-                                {"(hits - misses) / (hits + misses)"}
-                            </span>
-                            {"Overall score: "}{format!("{:.2}", 100.0 * mean(&goodnesses))}
-                        </span>
-                    </li>
-                    <li>
-                        <span class="tooltip">
-                            <span class="tooltiptext">
-                                {"Visited more than once and with"}
-                                <br />
-                                {format!("(hits - misses) / (hits + misses) > {:.2}", GOODNESS_CRITERION)}
-                            </span>
-                            {"Cards known well: "}{format!("{:.2}%", percent_good)}
-                        </span>
-                    </li>
-                    <li>
-                        {"Cards visited: "}
-                        {format!("{:.2}% of {}", percent_visited, cards.len())}
-                    </li>
-                    <li>{"Number of responses: "}{format!("{n_responses}")}</li>
-                </ul>
-                <table class="striped">
-                    <tr>
-                        <th>{"prompt"}</th>
-                        <th>{"response"}</th>
-                        <th>{format!("{}hits", prefix)}</th>
-                        <th>{format!("{}misses", prefix)}</th>
-                        <th>{format!("{}percent hit", prefix)}</th>
-                        <th>{format!("{}goodness", prefix)}</th>
-                    </tr>
-                    {rows}
-                </table>
-            </>
-        }
-    }
     fn default_card_data() -> String {
         let reverse_hits = None;
         let reverse_misses = None;
@@ -1137,7 +994,7 @@ impl Component for Model {
                         {mode_buttons}
                         {reverse_mode_html}
                         {clear_html}
-                        {self.stats_html()}
+                        <Stats cards={RefCell::new(self.cards.clone())} n_rows_displayed={self.n_rows_displayed} reverse_mode={self.reverse_mode} />
                     </div>
                 }
             }
