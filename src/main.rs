@@ -272,7 +272,23 @@ impl Model {
                 diff as f32 / total as f32
             }
         };
-        cards.sort_by(|a, b| goodness(b).partial_cmp(&goodness(a)).unwrap());
+        let sorting = |a: &Card, b: &Card| {
+            let good_a = goodness(a);
+            let good_b = goodness(b);
+            let cmp = good_b.partial_cmp(&good_a).unwrap();
+            if !matches!(cmp, Ordering::Equal) {
+                cmp
+            } else {
+                let (a_h, a_m) = hits_misses(a);
+                let (b_h, b_m) = hits_misses(b);
+                if good_a >= 0.0 {
+                    b_h.partial_cmp(&a_h).unwrap()
+                } else {
+                    a_m.partial_cmp(&b_m).unwrap()
+                }
+            }
+        };
+        cards.sort_by(sorting);
         let percent_visited = 100.0
             * (cards
                 .iter()
