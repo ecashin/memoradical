@@ -36,3 +36,76 @@ td.number {
 .cancel {
     background-color: #ffaaaa;
 }
+
+/* base body */
+html {
+    background-color: floralwhite;
+    display: flex;
+    padding: 1rem;
+}
+
+/* main content */
+body {
+    max-width: 40rem;
+    margin: 0 auto;
+    background-color: lightslategray;
+    color: floralwhite;
+}
+
+button {
+    height: 2rem;
+    border: 0;
+    margin: 0.4rem;
+    padding: 0 1rem;
+}
+
+/* actual card content */
+p {
+    max-width: 32rem;
+    width: 32rem;
+    font-size: 2rem;
+    padding: 3rem;
+    text-align: center;
+    margin: 1rem;
+    color: slategray;
+}
+
+/* nav div */
+#memoradical div:first-child {
+    border-bottom: 1px solid slategray;
+    background-color: floralwhite;
+}
+
+#memoradical div:first-child button {
+    height: 3rem;
+    background-color: slategray;
+    border-right: 1px solid black;
+    border-radius: 8px 8px 0 0;
+    margin-top: 1rem;
+    margin-right: -0.4rem;
+    margin-bottom: 0;
+    border-bottom: 1px solid slategray;
+}
+
+#memoradical div:first-child button:first-of-type {
+    margin-left: 0;
+}
+
+#memoradical div:first-child button:disabled {
+    background-color: lightslategray;
+    color: floralwhite;
+    font-weight: bold;
+    border-bottom: 1px solid lightslategray;
+}
+
+/* check boxes for changing behavior */
+.form-check {
+    margin-right: 1rem;
+    display: inline-block;
+    text-transform: capitalize;
+}
+
+.form-check:first-of-type {
+    margin-left: 1rem;
+    color: red;
+}
