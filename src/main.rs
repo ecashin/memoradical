@@ -1092,7 +1092,7 @@ impl Component for Model {
                     });
                 }
                 html! {
-                    <div>
+                    <div id="memoradical">
                         {mode_buttons}
                         {upload_html}
                         <table class="striped">
@@ -1108,7 +1108,7 @@ impl Component for Model {
             Mode::Help => {
                 let title = format!("Memoradical v{}", env!("CARGO_PKG_VERSION"));
                 html! {
-                    <div>
+                    <div id="memoradical">
                         {mode_buttons}
                         <h2>{title}</h2>
                         <p>{"Here is some help for "}<a href="https://github.com/ecashin/memoradical">{"Memoradical"}</a>{"."}</p>
@@ -1149,7 +1149,7 @@ impl Component for Model {
                     }
                 };
                 html! {
-                    <div>
+                    <div id="memoradical">
                         {mode_buttons}
                         {reverse_mode_html}
                         {clear_html}
@@ -1178,7 +1178,7 @@ impl Component for Model {
             }
             Mode::Add | Mode::Edit => {
                 html! {
-                    <div>
+                    <div id="memoradical">
                         {mode_buttons}
                         {add_card_html}
                     </div>
