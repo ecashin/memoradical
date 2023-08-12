@@ -46,6 +46,8 @@ html {
 
 /* main content */
 body {
+    width: 40rem;
+    padding: 1rem;
     max-width: 40rem;
     margin: 0 auto;
     background-color: lightslategray;
@@ -71,12 +73,16 @@ p {
 }
 
 /* nav div */
-#memoradical div:first-child {
+nav {
     border-bottom: 1px solid slategray;
     background-color: floralwhite;
+    top: -1rem;
+    left: -1rem;
+    position: relative;
+    width: calc(100% + 2rem);
 }
 
-#memoradical div:first-child button {
+nav button {
     height: 3rem;
     background-color: slategray;
     border-right: 1px solid black;
@@ -87,11 +93,11 @@ p {
     border-bottom: 1px solid slategray;
 }
 
-#memoradical div:first-child button:first-of-type {
+nav button:first-of-type {
     margin-left: 0;
 }
 
-#memoradical div:first-child button:disabled {
+#memoradical nav button:disabled {
     background-color: lightslategray;
     color: floralwhite;
     font-weight: bold;

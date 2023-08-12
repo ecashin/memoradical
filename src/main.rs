@@ -977,13 +977,13 @@ impl Component for Model {
             };
         }
         let mode_buttons = html! {
-            <div>
+            <nav>
                 <button disabled={self.mode == Mode::Help} onclick={ctx.link().callback(|_| Msg::HelpMode)}>{"Help"}</button>
                 <button disabled={self.mode == Mode::Study} onclick={ctx.link().callback(|_| Msg::StudyMode)}>{"Study"}</button>
                 <button disabled={self.mode == Mode::Add || self.mode == Mode::Edit} onclick={ctx.link().callback(|_| Msg::AddMode)}>{"Add Card"}</button>
                 <button disabled={self.mode == Mode::AllCards} onclick={ctx.link().callback(|_| Msg::AllCardsMode)}>{"All Cards"}</button>
                 <button disabled={self.mode == Mode::Stats} onclick={ctx.link().callback(|_| Msg::StatsMode)}>{"Stats"}</button>
-            </div>
+            </nav>
         };
         let add_card_html = html! {
             <div>
