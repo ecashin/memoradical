@@ -1115,6 +1115,8 @@ impl Component for Model {
                             <tr>
                                 <th>{"Prompt"}</th>
                                 <th>{"Response"}</th>
+                                <th colspan=2>{"Actions"}</th>
+
                             </tr>
                             {cards_html}
                         </table>
