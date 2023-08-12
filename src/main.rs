@@ -128,6 +128,15 @@ impl Face {
     }
 }
 
+
+impl fmt::Display for Face {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let dbg = format!("{:?}", self).to_lowercase();
+        write!(f, "{}", dbg)
+    }
+}
+
+
 struct Model {
     cards: Vec<Card>,
     choose_missed: bool,
@@ -1010,15 +1019,13 @@ impl Component for Model {
             } else {
                 self.visible_face.clone()
             };
-            let (text, bg_color) = match face {
-                Face::Prompt => (card.prompt.clone(), "#EEE8AA"),
-                Face::Response => (card.response.clone(), "#C1FFC1"),
+            let text = match face {
+                Face::Prompt => card.prompt.clone(),
+                Face::Response => card.response.clone()
             };
-            let style = format!("background-color: {bg_color}; font-size: large; padding: 3em");
+            let cls = format!("card {}", face.to_string());
             html! {
-                <>
-                    <p style={style}>{text}</p>
-                </>
+                <p class={cls}>{text}</p>
             }
         } else {
             html! {}
