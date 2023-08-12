@@ -1,5 +1,5 @@
 table.striped tr:nth-of-type(odd) {
-    background-color: #dde;
+    background-color: slategray;
     padding: 1ex;
 }
 
