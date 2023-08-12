@@ -1,5 +1,7 @@
 use std::cmp::Ordering;
 use std::collections::LinkedList;
+use std::fmt;
+use std::string::String;
 
 use anyhow::{anyhow, Context, Result};
 use gloo_console::console_dbg;
@@ -62,7 +64,7 @@ enum Msg {
     UploadCards(Vec<File>),
 }
 
-#[derive(PartialEq)]
+#[derive(Debug, PartialEq)]
 enum Mode {
     Add,
     AllCards,
@@ -70,6 +72,13 @@ enum Mode {
     Help,
     Stats,
     Study,
+}
+
+impl fmt::Display for Mode {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let dbg = format!("{:?}", self).to_lowercase();
+        write!(f, "{}", dbg)
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -118,6 +127,15 @@ impl Face {
         }
     }
 }
+
+
+impl fmt::Display for Face {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let dbg = format!("{:?}", self).to_lowercase();
+        write!(f, "{}", dbg)
+    }
+}
+
 
 struct Model {
     cards: Vec<Card>,
@@ -959,13 +977,13 @@ impl Component for Model {
             };
         }
         let mode_buttons = html! {
-            <div>
+            <nav>
                 <button disabled={self.mode == Mode::Help} onclick={ctx.link().callback(|_| Msg::HelpMode)}>{"Help"}</button>
                 <button disabled={self.mode == Mode::Study} onclick={ctx.link().callback(|_| Msg::StudyMode)}>{"Study"}</button>
                 <button disabled={self.mode == Mode::Add || self.mode == Mode::Edit} onclick={ctx.link().callback(|_| Msg::AddMode)}>{"Add Card"}</button>
                 <button disabled={self.mode == Mode::AllCards} onclick={ctx.link().callback(|_| Msg::AllCardsMode)}>{"All Cards"}</button>
                 <button disabled={self.mode == Mode::Stats} onclick={ctx.link().callback(|_| Msg::StatsMode)}>{"Stats"}</button>
-            </div>
+            </nav>
         };
         let add_card_html = html! {
             <div>
@@ -1001,15 +1019,13 @@ impl Component for Model {
             } else {
                 self.visible_face.clone()
             };
-            let (text, bg_color) = match face {
-                Face::Prompt => (card.prompt.clone(), "#EEE8AA"),
-                Face::Response => (card.response.clone(), "#C1FFC1"),
+            let text = match face {
+                Face::Prompt => card.prompt.clone(),
+                Face::Response => card.response.clone()
             };
-            let style = format!("background-color: {bg_color}; font-size: large; padding: 3em");
+            let cls = format!("card {}", face.to_string());
             html! {
-                <>
-                    <p style={style}>{text}</p>
-                </>
+                <p class={cls}>{text}</p>
             }
         } else {
             html! {}
@@ -1092,13 +1108,15 @@ impl Component for Model {
                     });
                 }
                 html! {
-                    <div>
+                    <div id="memoradical" class="memoradical-cards">
                         {mode_buttons}
                         {upload_html}
                         <table class="striped">
                             <tr>
                                 <th>{"Prompt"}</th>
                                 <th>{"Response"}</th>
+                                <th colspan=2>{"Actions"}</th>
+
                             </tr>
                             {cards_html}
                         </table>
@@ -1108,7 +1126,7 @@ impl Component for Model {
             Mode::Help => {
                 let title = format!("Memoradical v{}", env!("CARGO_PKG_VERSION"));
                 html! {
-                    <div>
+                    <div id="memoradical" class="memoradical-help">
                         {mode_buttons}
                         <h2>{title}</h2>
                         <p>{"Here is some help for "}<a href="https://github.com/ecashin/memoradical">{"Memoradical"}</a>{"."}</p>
@@ -1149,7 +1167,7 @@ impl Component for Model {
                     }
                 };
                 html! {
-                    <div>
+                    <div id="memoradical" class="memoradical-stats">
                         {mode_buttons}
                         {reverse_mode_html}
                         {clear_html}
@@ -1160,7 +1178,7 @@ impl Component for Model {
             Mode::Study => {
                 let choice_checkboxes_html = self.study_checkboxes(ctx);
                 html! {
-                    <div id="memoradical" {onkeypress}>
+                    <div id="memoradical" class="memoradical-study" {onkeypress}>
                         {mode_buttons}
                         <br/>
                         {reverse_mode_html}
@@ -1177,8 +1195,13 @@ impl Component for Model {
                 }
             }
             Mode::Add | Mode::Edit => {
+                let root_cls = format!(
+                    "memoradical-{}",
+                    self.mode.to_string()
+                );
+
                 html! {
-                    <div>
+                    <div id="memoradical" class={root_cls}>
                         {mode_buttons}
                         {add_card_html}
                     </div>
