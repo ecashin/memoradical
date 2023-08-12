@@ -95,13 +95,15 @@
           drv = serve-memoradical;
         };
 
-        devShells.default = pkgs.mkShell {
-          inputsFrom = builtins.attrValues self.checks;
-          nativeBuildInputs = with pkgs; [
-            cargo
-            rustc
-            trunk
-          ];
-        };
+        devShells.default = pkgs.mkShell
+          {
+            inputsFrom = builtins.attrValues self.checks;
+            nativeBuildInputs = with pkgs; [
+              cargo
+              rustc
+              trunk
+              rust-analyzer
+            ];
+          } // commonArgs;
       });
 }
