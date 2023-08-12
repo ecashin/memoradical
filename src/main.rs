@@ -1,5 +1,7 @@
 use std::cmp::Ordering;
 use std::collections::LinkedList;
+use std::fmt;
+use std::string::String;
 
 use anyhow::{anyhow, Context, Result};
 use gloo_console::console_dbg;
@@ -62,7 +64,7 @@ enum Msg {
     UploadCards(Vec<File>),
 }
 
-#[derive(PartialEq)]
+#[derive(Debug, PartialEq)]
 enum Mode {
     Add,
     AllCards,
@@ -70,6 +72,13 @@ enum Mode {
     Help,
     Stats,
     Study,
+}
+
+impl fmt::Display for Mode {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let dbg = format!("{:?}", self).to_lowercase();
+        write!(f, "{}", dbg)
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -1092,7 +1101,7 @@ impl Component for Model {
                     });
                 }
                 html! {
-                    <div id="memoradical">
+                    <div id="memoradical" class="memoradical-cards">
                         {mode_buttons}
                         {upload_html}
                         <table class="striped">
@@ -1108,7 +1117,7 @@ impl Component for Model {
             Mode::Help => {
                 let title = format!("Memoradical v{}", env!("CARGO_PKG_VERSION"));
                 html! {
-                    <div id="memoradical">
+                    <div id="memoradical" class="memoradical-help">
                         {mode_buttons}
                         <h2>{title}</h2>
                         <p>{"Here is some help for "}<a href="https://github.com/ecashin/memoradical">{"Memoradical"}</a>{"."}</p>
@@ -1149,7 +1158,7 @@ impl Component for Model {
                     }
                 };
                 html! {
-                    <div id="memoradical">
+                    <div id="memoradical" class="memoradical-stats">
                         {mode_buttons}
                         {reverse_mode_html}
                         {clear_html}
@@ -1160,7 +1169,7 @@ impl Component for Model {
             Mode::Study => {
                 let choice_checkboxes_html = self.study_checkboxes(ctx);
                 html! {
-                    <div id="memoradical" {onkeypress}>
+                    <div id="memoradical" class="memoradical-study" {onkeypress}>
                         {mode_buttons}
                         <br/>
                         {reverse_mode_html}
@@ -1177,8 +1186,13 @@ impl Component for Model {
                 }
             }
             Mode::Add | Mode::Edit => {
+                let root_cls = format!(
+                    "memoradical-{}",
+                    self.mode.to_string()
+                );
+
                 html! {
-                    <div id="memoradical">
+                    <div id="memoradical" class={root_cls}>
                         {mode_buttons}
                         {add_card_html}
                     </div>
