@@ -129,10 +129,6 @@ nav button:first-of-type {
     background-color: #c1ffc1;
 }
 
-.memoradical-help {
-    font-family: system-ui;
-}
-
 .memoradical-help p {
     color: black;
     font-size: large;
