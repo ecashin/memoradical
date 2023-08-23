@@ -128,3 +128,10 @@ nav button:first-of-type {
 .card.response {
     background-color: #c1ffc1;
 }
+
+.memoradical-help p {
+    color: black;
+    font-size: large;
+    padding: 1rem;
+    text-align: left;
+}
